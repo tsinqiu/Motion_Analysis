@@ -1,0 +1,152 @@
+{
+  "_downloadMode": "enriched",
+  "_garminConnectExtras": {
+    "hrTimeInZones": [
+      {
+        "secsInZone": 5.0,
+        "zoneLowBoundary": 93,
+        "zoneNumber": 1
+      },
+      {
+        "secsInZone": 150.0,
+        "zoneLowBoundary": 111,
+        "zoneNumber": 2
+      },
+      {
+        "secsInZone": 130.0,
+        "zoneLowBoundary": 130,
+        "zoneNumber": 3
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 148,
+        "zoneNumber": 4
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 167,
+        "zoneNumber": 5
+      }
+    ],
+    "powerTimeInZones": []
+  },
+  "accessControlRuleDTO": {
+    "typeId": 1,
+    "typeKey": "public"
+  },
+  "activityId": 575221555,
+  "activityName": "无锡市 街道路跑",
+  "activityTypeDTO": {
+    "isHidden": false,
+    "parentTypeId": 1,
+    "restricted": false,
+    "trimmable": true,
+    "typeId": 7,
+    "typeKey": "street_running"
+  },
+  "activityUUID": {
+    "uuid": "aea52abf-3391-4d7f-ba90-b4315d3e93ce"
+  },
+  "eventTypeDTO": {
+    "sortOrder": 10,
+    "typeId": 9,
+    "typeKey": "uncategorized"
+  },
+  "isMultiSportParent": false,
+  "locationName": "无锡市",
+  "metadataDTO": {
+    "activityImages": [],
+    "agentApplicationInstallationId": null,
+    "agentString": null,
+    "associatedCourseId": null,
+    "associatedWorkoutId": null,
+    "autoCalcCalories": false,
+    "calendarEventInfo": null,
+    "childActivityTypes": [],
+    "childIds": [],
+    "deviceApplicationInstallationId": 80,
+    "deviceMetaDataDTO": {
+      "deviceId": "12345",
+      "deviceTypePk": 19,
+      "deviceVersionPk": 80
+    },
+    "diveNumber": null,
+    "eBikeAssistModeInfoDTOList": null,
+    "eBikeBatteryRemaining": null,
+    "eBikeBatteryUsage": null,
+    "eBikeMaxAssistModes": null,
+    "elevationCorrected": false,
+    "favorite": false,
+    "fileFormat": {
+      "formatId": 7,
+      "formatKey": "fit"
+    },
+    "gcj02": false,
+    "groupRideUUID": null,
+    "hasChartData": true,
+    "hasHeatMap": false,
+    "hasHrTimeInZones": true,
+    "hasIntensityIntervals": false,
+    "hasPolyline": true,
+    "hasPowerTimeInZones": false,
+    "hasRunPowerWindData": null,
+    "hasSplits": false,
+    "isAtpActivity": null,
+    "isOriginal": true,
+    "lapCount": 1,
+    "lastUpdateDate": "2026-03-27T06:13:02.0",
+    "manualActivity": false,
+    "manufacturer": "DEVELOPMENT",
+    "personalRecord": false,
+    "runPowerWindDataEnabled": null,
+    "sensors": null,
+    "trimmed": false,
+    "uploadedDate": "2026-03-19T12:21:14.0",
+    "userInfoDto": {
+      "displayname": "dccfdc6a-96f5-40b0-9d47-b7f60b9b7f17",
+      "fullname": "陈振",
+      "profileImageUrlLarge": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prof.png",
+      "profileImageUrlMedium": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prfr.png",
+      "profileImageUrlSmall": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prth.png",
+      "userPro": false,
+      "userProfilePk": 12733831
+    },
+    "videoUrl": null
+  },
+  "summaryDTO": {
+    "averageHR": 128.0,
+    "averageMovingSpeed": 2.8135593220338984,
+    "averageRunCadence": 178.0,
+    "averageSpeed": 2.756999969482422,
+    "avgElevation": 4.6,
+    "calories": 44.0,
+    "distance": 830.0,
+    "duration": 301.0,
+    "elapsedDuration": 301.0,
+    "elevationGain": 1.0,
+    "elevationLoss": 1.0,
+    "endLatitude": 31.488723708316684,
+    "endLongitude": 120.27023311704397,
+    "maxElevation": 5.0,
+    "maxHR": 137.0,
+    "maxRunCadence": 184.0,
+    "maxSpeed": 0.0,
+    "maxVerticalSpeed": 0.27469635009765625,
+    "minActivityLapDuration": 326.0,
+    "minElevation": 4.0,
+    "minHR": 108.0,
+    "movingDuration": 295.0,
+    "startLatitude": 31.490179058164358,
+    "startLongitude": 120.26618189178407,
+    "startTimeGMT": "2026-03-02T11:05:14.0",
+    "startTimeLocal": "2026-03-02T19:05:14.0",
+    "strideLength": 41.69423534587578
+  },
+  "timeZoneUnitDTO": {
+    "factor": 0.0,
+    "timeZone": "Asia/Hong_Kong",
+    "unitId": 135,
+    "unitKey": "Asia/Hong_Kong"
+  },
+  "userProfileId": 12733831
+}

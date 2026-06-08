@@ -1,0 +1,267 @@
+{
+  "_downloadMode": "enriched",
+  "_garminConnectExtras": {
+    "hrTimeInZones": [
+      {
+        "secsInZone": 239.985,
+        "zoneLowBoundary": 129,
+        "zoneNumber": 1
+      },
+      {
+        "secsInZone": 522.952,
+        "zoneLowBoundary": 145,
+        "zoneNumber": 2
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 165,
+        "zoneNumber": 3
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 171,
+        "zoneNumber": 4
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 181,
+        "zoneNumber": 5
+      }
+    ],
+    "powerTimeInZones": [
+      {
+        "secsInZone": 702.815,
+        "zoneLowBoundary": 231,
+        "zoneNumber": 1
+      },
+      {
+        "secsInZone": 128.121,
+        "zoneLowBoundary": 285,
+        "zoneNumber": 2
+      },
+      {
+        "secsInZone": 3.002,
+        "zoneLowBoundary": 320,
+        "zoneNumber": 3
+      },
+      {
+        "secsInZone": 2.999,
+        "zoneLowBoundary": 356,
+        "zoneNumber": 4
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 409,
+        "zoneNumber": 5
+      }
+    ]
+  },
+  "accessControlRuleDTO": {
+    "typeId": 1,
+    "typeKey": "public"
+  },
+  "activityId": 594302824,
+  "activityName": "无锡市 跑步",
+  "activityTypeDTO": {
+    "isHidden": false,
+    "parentTypeId": 17,
+    "restricted": false,
+    "trimmable": true,
+    "typeId": 1,
+    "typeKey": "running"
+  },
+  "activityUUID": {
+    "uuid": "f40138bf-f2f5-4195-b3a8-46fe66926cde"
+  },
+  "eventTypeDTO": {
+    "sortOrder": 10,
+    "typeId": 9,
+    "typeKey": "uncategorized"
+  },
+  "isMultiSportParent": false,
+  "locationName": "无锡市",
+  "metadataDTO": {
+    "activityImages": [],
+    "agentApplicationInstallationId": null,
+    "agentString": null,
+    "associatedCourseId": null,
+    "associatedWorkoutId": null,
+    "autoCalcCalories": false,
+    "calendarEventInfo": null,
+    "childActivityTypes": [],
+    "childIds": [],
+    "deviceApplicationInstallationId": 860311,
+    "deviceMetaDataDTO": {
+      "deviceId": "3600896256",
+      "deviceTypePk": 45479,
+      "deviceVersionPk": 860311
+    },
+    "diveNumber": null,
+    "eBikeAssistModeInfoDTOList": null,
+    "eBikeBatteryRemaining": null,
+    "eBikeBatteryUsage": null,
+    "eBikeMaxAssistModes": null,
+    "elevationCorrected": false,
+    "favorite": false,
+    "fileFormat": {
+      "formatId": 7,
+      "formatKey": "fit"
+    },
+    "gcj02": false,
+    "groupRideUUID": null,
+    "hasChartData": true,
+    "hasHeatMap": false,
+    "hasHrTimeInZones": true,
+    "hasIntensityIntervals": false,
+    "hasPolyline": true,
+    "hasPowerTimeInZones": true,
+    "hasRunPowerWindData": false,
+    "hasSplits": true,
+    "isAtpActivity": null,
+    "isOriginal": true,
+    "lapCount": 3,
+    "lastUpdateDate": "2026-05-13T09:00:28.0",
+    "manualActivity": false,
+    "manufacturer": "GARMIN",
+    "personalRecord": false,
+    "runPowerWindDataEnabled": true,
+    "sensors": null,
+    "trimmed": false,
+    "uploadedDate": "2026-05-13T09:00:28.0",
+    "userInfoDto": {
+      "displayname": "dccfdc6a-96f5-40b0-9d47-b7f60b9b7f17",
+      "fullname": "陈振",
+      "profileImageUrlLarge": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prof.png",
+      "profileImageUrlMedium": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prfr.png",
+      "profileImageUrlSmall": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prth.png",
+      "userPro": false,
+      "userProfilePk": 12733831
+    },
+    "videoUrl": null
+  },
+  "splitSummaries": [
+    {
+      "averageElevationGain": 0.0,
+      "averageHR": 141.0,
+      "averageMovingSpeed": 3.436083403087798,
+      "averagePower": 274.0,
+      "averageRunCadence": 179.765625,
+      "averageSpeed": 3.4230000972747803,
+      "avgGradeAdjustedSpeed": 3.403000116348267,
+      "avgStepFrequency": 179.765625,
+      "avgStepLength": 1.1299000244140627,
+      "avgVerticalSpeed": 0.0,
+      "bmrCalories": 19.0,
+      "calories": 166.0,
+      "distance": 2886.31,
+      "duration": 843.158,
+      "elevationGain": 0.0,
+      "elevationLoss": 1.0,
+      "groundContactTime": 237.1999969482422,
+      "maxDistance": 2886,
+      "maxDistanceWithPrecision": 2886.31,
+      "maxElevationGain": 0.0,
+      "maxHR": 152.0,
+      "maxPower": 361.0,
+      "maxRunCadence": 188.0,
+      "maxSpeed": 4.189000129699707,
+      "movingDuration": 840.0,
+      "noOfSplits": 1,
+      "normalizedPower": 276.0,
+      "splitType": "INTERVAL_ACTIVE",
+      "strideLength": 112.99000244140626,
+      "totalExerciseReps": 0,
+      "verticalOscillation": 8.70999984741211,
+      "verticalRatio": 7.710000038146973
+    },
+    {
+      "averageElevationGain": 0.0,
+      "averageHR": 141.0,
+      "averageMovingSpeed": 3.4360834030877982,
+      "averagePower": 274.0,
+      "averageRunCadence": 179.765625,
+      "averageSpeed": 3.4230000972747803,
+      "avgGradeAdjustedSpeed": 3.403000116348267,
+      "avgStepFrequency": 179.765625,
+      "avgStepLength": 1.1299000244140627,
+      "avgVerticalSpeed": 0.0,
+      "bmrCalories": 19.0,
+      "calories": 166.0,
+      "distance": 2886.31,
+      "duration": 843.128,
+      "elevationGain": 0.0,
+      "elevationLoss": 1.0,
+      "groundContactTime": 237.1999969482422,
+      "maxDistance": 2886,
+      "maxDistanceWithPrecision": 2886.31,
+      "maxElevationGain": 0.0,
+      "maxHR": 152.0,
+      "maxPower": 361.0,
+      "maxRunCadence": 188.0,
+      "maxSpeed": 4.189000129699707,
+      "movingDuration": 840.0,
+      "noOfSplits": 1,
+      "normalizedPower": 276.0,
+      "splitType": "RWD_RUN",
+      "strideLength": 112.99000244140626,
+      "totalExerciseReps": 0,
+      "verticalOscillation": 8.70999984741211,
+      "verticalRatio": 7.710000038146973
+    }
+  ],
+  "summaryDTO": {
+    "activityTrainingLoad": 46.25871276855469,
+    "aerobicTrainingEffectMessage": "MINOR_AEROBIC_BENEFIT_0",
+    "anaerobicTrainingEffect": 0.0,
+    "anaerobicTrainingEffectMessage": "NO_ANAEROBIC_BENEFIT_0",
+    "averageHR": 141.0,
+    "averageMovingSpeed": 3.431997691550238,
+    "averagePower": 274.0,
+    "averageRunCadence": 179.765625,
+    "averageSpeed": 3.4230000972747803,
+    "avgElevation": 2.51,
+    "avgGradeAdjustedSpeed": 3.403000116348267,
+    "bmrCalories": 19.0,
+    "calories": 166.0,
+    "differenceBodyBattery": -3,
+    "distance": 2886.31,
+    "duration": 843.158,
+    "elapsedDuration": 847.232,
+    "elevationGain": 0.0,
+    "elevationLoss": 1.0,
+    "endLatitude": 31.489345729351044,
+    "endLongitude": 120.26076374575496,
+    "groundContactTime": 237.1999969482422,
+    "maxElevation": 3.4,
+    "maxHR": 152.0,
+    "maxPower": 361.0,
+    "maxRunCadence": 188.0,
+    "maxSpeed": 4.189000129699707,
+    "maxVerticalSpeed": 0.20000004768371582,
+    "minActivityLapDuration": 261.622,
+    "minElevation": 1.4,
+    "minHR": 58.0,
+    "minPower": 0.0,
+    "movingDuration": 841.0,
+    "normalizedPower": 276.0,
+    "startLatitude": 31.48873133584857,
+    "startLongitude": 120.26074890978634,
+    "startTimeGMT": "2026-05-13T08:32:57.0",
+    "startTimeLocal": "2026-05-13T16:32:57.0",
+    "steps": 2526,
+    "strideLength": 112.99000244140626,
+    "totalWork": 55.36966410661525,
+    "trainingEffect": 2.299999952316284,
+    "trainingEffectLabel": "RECOVERY",
+    "verticalOscillation": 8.70999984741211,
+    "verticalRatio": 7.710000038146973,
+    "waterEstimated": 234.0
+  },
+  "timeZoneUnitDTO": {
+    "factor": 0.0,
+    "timeZone": "Asia/Hong_Kong",
+    "unitId": 135,
+    "unitKey": "Asia/Hong_Kong"
+  },
+  "userProfileId": 12733831
+}

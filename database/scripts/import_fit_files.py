@@ -5,6 +5,7 @@ import datetime as dt
 import hashlib
 import json
 import math
+import re
 import struct
 from pathlib import Path
 
@@ -56,7 +57,8 @@ FIELD_NAMES = {
         16: "avg_heart_rate", 17: "max_heart_rate", 18: "avg_cadence",
         19: "max_cadence", 20: "avg_power", 21: "max_power",
         22: "total_ascent", 23: "total_descent", 29: "num_laps",
-        34: "total_moving_time", 124: "enhanced_avg_speed", 125: "enhanced_max_speed",
+        34: "normalized_power", 59: "total_moving_time",
+        124: "enhanced_avg_speed", 125: "enhanced_max_speed",
     },
     19: {
         253: "timestamp", 2: "start_time", 7: "total_elapsed_time",
@@ -155,6 +157,10 @@ def sql_int(value):
     return str(int(value))
 
 
+def sql_json(obj):
+    return sql_string(raw_json(obj)) if obj is not None else "NULL"
+
+
 def field_name(global_num, field_num):
     return FIELD_NAMES.get(global_num, {}).get(field_num, f"field_{field_num}")
 
@@ -192,12 +198,21 @@ def read_field(raw, base_type, endian):
     return values if values else None
 
 
+def is_fit_timestamp_field(global_num, field_num):
+    return (
+        (global_num == 0 and field_num == 4)
+        or (global_num in (18, 19) and field_num in (253, 2))
+        or (global_num in (20, 21) and field_num == 253)
+        or (global_num == 34 and field_num in (253, 5))
+    )
+
+
 def convert_value(global_num, field_num, value):
     if value is None:
         return None
     if isinstance(value, list):
         return [convert_value(global_num, field_num, item) for item in value]
-    if field_num in (253, 2, 4) and global_num in (0, 18, 19, 20, 21, 34):
+    if is_fit_timestamp_field(global_num, field_num):
         return iso(fit_time(value))
     if global_num == 20 and field_num in (0, 1):
         return value * 180 / (2 ** 31)
@@ -207,7 +222,9 @@ def convert_value(global_num, field_num, value):
         return value / 1000
     if field_num in (2, 78) and global_num == 20:
         return value / 5 - 500
-    if field_num in (7, 8, 34) and global_num in (18, 19):
+    if field_num in (7, 8) and global_num in (18, 19):
+        return value / 1000
+    if field_num == 59 and global_num == 18:
         return value / 1000
     if field_num == 0 and global_num == 34:
         return value / 1000
@@ -344,6 +361,21 @@ def get_text(values, name):
     return str(value)
 
 
+def get_cadence(values):
+    cadence = get_num(values, "cadence")
+    if cadence is None:
+        return None
+    fractional = get_num(values, "fractional_cadence")
+    if fractional is None:
+        return cadence
+    return cadence + fractional / 128
+
+
+def garmin_id_from_name(path: Path):
+    match = re.search(r"_(\d+)$", path.stem)
+    return match.group(1) if match else None
+
+
 def rows_for_file(path: Path):
     messages = parse_fit(path)
     file_hash = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -371,6 +403,7 @@ def rows_for_file(path: Path):
     return {
         "path": path,
         "hash": file_hash,
+        "garmin_id": garmin_id_from_name(path),
         "messages": messages,
         "activity": {
             "key": activity_key,
@@ -396,6 +429,179 @@ def infer_type_from_name(name):
     return None
 
 
+def parse_json_datetime(value):
+    if not value:
+        return None
+    text = str(value).replace("Z", "+00:00")
+    parsed = dt.datetime.fromisoformat(text)
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+def local_to_utc(value):
+    parsed = parse_json_datetime(value)
+    if parsed is None:
+        return None
+    return parsed - dt.timedelta(hours=8)
+
+
+def json_activity_type(summary):
+    activity_type = summary.get("activityTypeDTO")
+    if isinstance(activity_type, dict):
+        type_key = activity_type.get("typeKey")
+        if type_key:
+            return str(type_key)
+    sport_type = summary.get("sportType")
+    if sport_type:
+        return str(sport_type)
+    sport = summary.get("sport")
+    if sport == 1:
+        return "running"
+    if sport == 2:
+        return "cycling"
+    if sport == 10:
+        return "strength_training"
+    return None
+
+
+def normalized_activity_type(value):
+    if not value:
+        return None
+    text = str(value)
+    if "running" in text:
+        return "running"
+    if "cycling" in text or "biking" in text:
+        return "cycling"
+    if "strength" in text:
+        return "strength_training"
+    return text
+
+
+def normalize_garmin_json(data):
+    summary = data.get("summaryDTO") if isinstance(data.get("summaryDTO"), dict) else {}
+    metadata = data.get("metadataDTO") if isinstance(data.get("metadataDTO"), dict) else {}
+    activity_type = data.get("activityTypeDTO") if isinstance(data.get("activityTypeDTO"), dict) else {}
+    normalized = dict(data)
+    aliases = {
+        "id": data.get("id") or data.get("activityId"),
+        "name": data.get("name") or data.get("activityName"),
+        "sportType": data.get("sportType") or activity_type.get("typeKey"),
+        "sport": data.get("sport") or activity_type.get("parentTypeId"),
+        "subSport": data.get("subSport") or activity_type.get("typeId"),
+        "startTimeLocal": data.get("startTimeLocal") or summary.get("startTimeLocal"),
+        "startTimeGMT": data.get("startTimeGMT") or summary.get("startTimeGMT"),
+        "duration": data.get("duration") or summary.get("duration"),
+        "movingDuration": data.get("movingDuration") or summary.get("movingDuration"),
+        "elapsedDuration": data.get("elapsedDuration") or summary.get("elapsedDuration"),
+        "distance": data.get("distance") or summary.get("distance"),
+        "calories": data.get("calories") or summary.get("calories"),
+        "avgSpeed": data.get("avgSpeed") or summary.get("averageSpeed"),
+        "maxSpeed": data.get("maxSpeed") or summary.get("maxSpeed"),
+        "avgHeartRate": data.get("avgHeartRate") or summary.get("averageHR"),
+        "maxHeartRate": data.get("maxHeartRate") or summary.get("maxHR"),
+        "avgCadenceSpm": data.get("avgCadenceSpm") or summary.get("averageRunCadence"),
+        "maxCadenceSpm": data.get("maxCadenceSpm") or summary.get("maxRunCadence"),
+        "avgStrideLength": data.get("avgStrideLength") or summary.get("strideLength"),
+        "elevationGain": data.get("elevationGain") or summary.get("elevationGain"),
+        "elevationLoss": data.get("elevationLoss") or summary.get("elevationLoss"),
+        "minElevation": data.get("minElevation") or summary.get("minElevation"),
+        "maxElevation": data.get("maxElevation") or summary.get("maxElevation"),
+        "startLatitude": data.get("startLatitude") or summary.get("startLatitude"),
+        "startLongitude": data.get("startLongitude") or summary.get("startLongitude"),
+        "endLatitude": data.get("endLatitude") or summary.get("endLatitude"),
+        "endLongitude": data.get("endLongitude") or summary.get("endLongitude"),
+        "manufacturer": data.get("manufacturer") or metadata.get("manufacturer"),
+    }
+    for key, value in aliases.items():
+        if value is not None:
+            normalized[key] = value
+    return normalized
+
+
+def read_garmin_json(path: Path):
+    text = path.read_text(encoding="utf-8-sig")
+    start = text.find("{")
+    if start < 0:
+        raise ValueError(f"{path} does not contain JSON")
+    data = normalize_garmin_json(json.loads(text[start:]))
+    start_utc = parse_json_datetime(data.get("startTimeGMT") or data.get("createdAt") or data.get("updatedAt"))
+    if start_utc is None:
+        start_utc = local_to_utc(data.get("startTimeLocal"))
+    return {
+        "path": path,
+        "hash": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "data": data,
+        "garmin_id": str(data.get("id") or garmin_id_from_name(path)) if (data.get("id") or garmin_id_from_name(path)) is not None else None,
+        "activity_type": normalized_activity_type(json_activity_type(data)),
+        "start_utc": start_utc,
+        "local_start": parse_json_datetime(data.get("startTimeLocal")),
+        "distance_m": get_num(data, "distance"),
+        "duration_s": get_num(data, "duration"),
+    }
+
+
+def compatible_activity_types(left, right):
+    if not left or not right:
+        return True
+    return normalized_activity_type(left) == normalized_activity_type(right)
+
+
+def fit_primary_session(item):
+    return item["sessions"][0]["values"] if item["sessions"] else {}
+
+
+def fit_match_score(fit_item, json_item):
+    fit_activity = fit_item["activity"]
+    fit_start = fit_activity.get("start")
+    json_start = json_item.get("start_utc")
+    if fit_start is None or json_start is None:
+        return None
+    if not compatible_activity_types(fit_activity.get("type"), json_item.get("activity_type")):
+        return None
+    session = fit_primary_session(fit_item)
+    score = abs((fit_start - json_start).total_seconds())
+    fit_distance = get_num(session, "total_distance")
+    json_distance = json_item.get("distance_m")
+    if fit_distance is not None and json_distance is not None:
+        score += abs(fit_distance - json_distance) / 10
+    fit_duration = get_num(session, "total_timer_time")
+    json_duration = json_item.get("duration_s")
+    if fit_duration is not None and json_duration is not None:
+        score += abs(fit_duration - json_duration)
+    return score
+
+
+def merge_activities(fit_items, json_items):
+    unmatched_json = list(json_items)
+    merged = []
+    for fit_item in fit_items:
+        fit_garmin_id = fit_item.get("garmin_id")
+        if fit_garmin_id:
+            json_item = next((item for item in unmatched_json if item.get("garmin_id") == fit_garmin_id), None)
+            if json_item:
+                unmatched_json.remove(json_item)
+                merged.append({"fit": fit_item, "json": json_item, "match_score": 0})
+                continue
+        candidates = []
+        for json_item in unmatched_json:
+            score = fit_match_score(fit_item, json_item)
+            if score is not None:
+                time_delta = abs((fit_item["activity"]["start"] - json_item["start_utc"]).total_seconds())
+                if time_delta <= 180:
+                    candidates.append((score, json_item))
+        if candidates:
+            candidates.sort(key=lambda item: item[0])
+            score, json_item = candidates[0]
+            unmatched_json.remove(json_item)
+            merged.append({"fit": fit_item, "json": json_item, "match_score": score})
+        else:
+            merged.append({"fit": fit_item, "json": None, "match_score": None})
+    for json_item in unmatched_json:
+        merged.append({"fit": None, "json": json_item, "match_score": None})
+    return merged
+
+
 def raw_json(obj):
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 
@@ -413,151 +619,375 @@ def maybe_raw_json(obj, include_raw_json):
     return sql_string(raw_json(obj)) if include_raw_json else "NULL"
 
 
-def build_sql(files, include_fit_messages=False, include_raw_json=False):
+def source_file_sql(path, source_type):
+    return (
+        "INSERT INTO SourceFiles (source_type, file_name, file_path, file_size_bytes, file_hash) VALUES ("
+        + ", ".join([
+            sql_string(source_type),
+            sql_string(path.name),
+            sql_string(str(path)),
+            sql_int(path.stat().st_size),
+            sql_string(hashlib.sha256(path.read_bytes()).hexdigest()),
+        ])
+        + ") ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id);"
+    )
+
+
+def canonical_activity(row):
+    fit_item = row.get("fit")
+    json_item = row.get("json")
+    j = json_item["data"] if json_item else {}
+    fit_activity = fit_item["activity"] if fit_item else {}
+    garmin_id = json_item.get("garmin_id") if json_item else None
+    start_utc = json_item.get("start_utc") if json_item else fit_activity.get("start")
+    local_start = json_item.get("local_start") if json_item else None
+    activity_type = json_item.get("activity_type") if json_item else fit_activity.get("type")
+    activity_key = f"garmin:{garmin_id}" if garmin_id else f"fit:{fit_activity.get('key')}"
+    if fit_item and json_item:
+        match_status = "matched_fit_json"
+    elif fit_item:
+        match_status = "fit_only"
+    else:
+        match_status = "json_only"
+    return {
+        "key": activity_key,
+        "garmin_id": garmin_id,
+        "name": j.get("name") or j.get("activityName"),
+        "type": activity_type,
+        "sport_code": get_int(j, "sport"),
+        "sub_sport_code": get_int(j, "subSport"),
+        "start_utc": start_utc,
+        "local_start": local_start,
+        "location": j.get("locationName"),
+        "start_latitude": get_num(j, "startLatitude"),
+        "start_longitude": get_num(j, "startLongitude"),
+        "end_latitude": get_num(j, "endLatitude"),
+        "end_longitude": get_num(j, "endLongitude"),
+        "match_status": match_status,
+        "raw": {"fit_activity": fit_activity, "json_activity": j} if fit_item and json_item else (j or fit_activity),
+    }
+
+
+def emit_activity_source(lines, path, source_type, source_role, match_score=None, match_note=None):
+    lines.append(source_file_sql(path, source_type))
+    lines.append("SET @source_file_id = LAST_INSERT_ID();")
+    lines.append(
+        "INSERT INTO ActivitySourceFiles (activity_id, source_file_id, source_role, match_score, match_note) VALUES ("
+        + ", ".join([
+            "@activity_id",
+            "@source_file_id",
+            sql_string(source_role),
+            sql_number(match_score),
+            sql_string(match_note),
+        ])
+        + ");"
+    )
+
+
+def emit_fit_rows(lines, item, include_fit_messages=False, include_raw_json=False):
+    session_rows = []
+    for message in item["sessions"]:
+        v = message["values"]
+        session_rows.append([
+            "@activity_id",
+            sql_datetime(as_dt(v.get("start_time"))),
+            sql_number(get_num(v, "total_elapsed_time")),
+            sql_number(get_num(v, "total_timer_time")),
+            sql_number(get_num(v, "total_moving_time")),
+            sql_number(get_num(v, "total_distance")),
+            sql_int(get_int(v, "total_calories")),
+            sql_number(get_num(v, "enhanced_avg_speed", "avg_speed")),
+            sql_number(get_num(v, "enhanced_max_speed", "max_speed")),
+            sql_int(get_int(v, "avg_heart_rate")),
+            sql_int(get_int(v, "max_heart_rate")),
+            sql_number(get_num(v, "avg_cadence")),
+            sql_number(get_num(v, "max_cadence")),
+            sql_int(get_int(v, "avg_power")),
+            sql_int(get_int(v, "max_power")),
+            sql_int(get_int(v, "normalized_power")),
+            sql_int(get_int(v, "total_ascent")),
+            sql_int(get_int(v, "total_descent")),
+            maybe_raw_json(v, include_raw_json),
+        ])
+    emit_insert_values(lines, "Sessions", [
+        "activity_id", "start_time_utc", "total_elapsed_time_s", "total_timer_time_s",
+        "total_moving_time_s", "total_distance_m", "total_calories", "avg_speed_mps",
+        "max_speed_mps", "avg_heart_rate_bpm", "max_heart_rate_bpm", "avg_cadence",
+        "max_cadence", "avg_power_w", "max_power_w", "normalized_power_w",
+        "total_ascent_m", "total_descent_m", "raw_json",
+    ], session_rows, 50)
+
+    lap_rows = []
+    for idx, message in enumerate(item["laps"]):
+        v = message["values"]
+        lap_rows.append([
+            "@activity_id", sql_int(idx), sql_datetime(as_dt(v.get("start_time"))),
+            sql_number(get_num(v, "total_elapsed_time")),
+            sql_number(get_num(v, "total_timer_time")),
+            sql_number(get_num(v, "total_distance")),
+            sql_number(get_num(v, "enhanced_avg_speed", "avg_speed")),
+            sql_number(get_num(v, "enhanced_max_speed", "max_speed")),
+            sql_int(get_int(v, "avg_heart_rate")),
+            sql_int(get_int(v, "max_heart_rate")),
+            sql_number(get_num(v, "avg_cadence")),
+            sql_number(get_num(v, "max_cadence")),
+            sql_int(get_int(v, "avg_power")),
+            sql_int(get_int(v, "max_power")),
+            maybe_raw_json(v, include_raw_json),
+        ])
+    emit_insert_values(lines, "Laps", [
+        "activity_id", "lap_index", "start_time_utc", "total_elapsed_time_s", "total_timer_time_s",
+        "total_distance_m", "avg_speed_mps", "max_speed_mps", "avg_heart_rate_bpm",
+        "max_heart_rate_bpm", "avg_cadence", "max_cadence", "avg_power_w", "max_power_w", "raw_json",
+    ], lap_rows, 100)
+
+    record_rows = []
+    for idx, message in enumerate(item["records"]):
+        v = message["values"]
+        record_rows.append([
+            "@activity_id", sql_int(idx), sql_datetime(as_dt(v.get("timestamp"))),
+            sql_number(get_num(v, "position_lat")),
+            sql_number(get_num(v, "position_long")),
+            sql_number(get_num(v, "enhanced_altitude", "altitude")),
+            sql_number(get_num(v, "distance")),
+            sql_number(get_num(v, "enhanced_speed", "speed")),
+            sql_int(get_int(v, "heart_rate")),
+            sql_number(get_cadence(v)),
+            sql_int(get_int(v, "power")),
+            sql_int(get_int(v, "accumulated_power")),
+            sql_number(get_num(v, "vertical_oscillation")),
+            sql_number(get_num(v, "stance_time")),
+            maybe_raw_json(v, include_raw_json),
+        ])
+    emit_insert_values(lines, "TrackPoints", [
+        "activity_id", "sample_index", "sample_time_utc", "latitude", "longitude", "altitude_m",
+        "distance_m", "speed_mps", "heart_rate_bpm", "cadence", "power_w", "accumulated_power_w",
+        "vertical_oscillation_mm", "stance_time_ms", "raw_json",
+    ], record_rows, 200)
+
+    event_rows = []
+    for idx, message in enumerate(item["events"]):
+        v = message["values"]
+        event_rows.append([
+            "@activity_id", sql_int(idx), sql_datetime(as_dt(v.get("timestamp"))),
+            sql_string(v.get("event_type")),
+            sql_string(v.get("event")),
+            sql_int(get_int(v, "event_group")),
+            maybe_raw_json(v, include_raw_json),
+        ])
+    emit_insert_values(lines, "Events", [
+        "activity_id", "event_index", "event_time_utc", "event_type", "event", "event_group", "raw_json",
+    ], event_rows, 100)
+
+    if include_fit_messages:
+        msg_rows = []
+        for message in item["messages"]:
+            v = message["values"]
+            msg_rows.append([
+                "@activity_id",
+                sql_int(message["message_index"]),
+                sql_int(message["global_num"]),
+                sql_string(message["message_name"]),
+                sql_int(message["local_num"]),
+                sql_datetime(as_dt(v.get("timestamp") or v.get("start_time"))),
+                sql_string(raw_json(v)),
+            ])
+        emit_insert_values(lines, "FitMessages", [
+            "activity_id", "message_index", "global_message_num", "message_name",
+            "local_message_num", "message_time_utc", "raw_json",
+        ], msg_rows, 200)
+
+
+def zone_duration(value):
+    if isinstance(value, (int, float)):
+        return value
+    if not isinstance(value, dict):
+        return None
+    for key in (
+        "duration",
+        "durationInSeconds",
+        "seconds",
+        "timeInZone",
+        "timeInZoneSeconds",
+        "secsInZone",
+        "value",
+    ):
+        item = value.get(key)
+        if isinstance(item, (int, float)):
+            return item
+    return None
+
+
+def collect_zone_values(payload):
+    if isinstance(payload, list):
+        durations = [zone_duration(item) for item in payload]
+        durations = [item for item in durations if item is not None]
+        if durations:
+            return durations
+        for item in payload:
+            nested = collect_zone_values(item)
+            if nested:
+                return nested
+    if isinstance(payload, dict) and "_error" not in payload:
+        zone_keys = sorted(
+            [key for key in payload if re.search(r"zone", str(key), re.IGNORECASE)],
+            key=lambda item: str(item),
+        )
+        durations = [zone_duration(payload[key]) for key in zone_keys]
+        durations = [item for item in durations if item is not None]
+        if durations:
+            return durations
+        for value in payload.values():
+            nested = collect_zone_values(value)
+            if nested:
+                return nested
+    return []
+
+
+def append_zone_rows(zone_rows, activity_id, zone_type, values, source_field):
+    for idx, value in enumerate(values):
+        if isinstance(value, (int, float)) and value:
+            zone_rows.append([
+                activity_id,
+                sql_string(zone_type),
+                sql_int(idx),
+                sql_number(value),
+                sql_string(source_field),
+            ])
+
+
+def emit_json_summary_rows(lines, item):
+    j = item["data"]
+    lines.append(
+        "INSERT INTO ActivitySummaries ("
+        "activity_id, garmin_activity_id, duration_s, moving_duration_s, elapsed_duration_s, "
+        "distance_m, calories, avg_speed_mps, max_speed_mps, avg_heart_rate_bpm, max_heart_rate_bpm, "
+        "avg_cadence_spm, max_cadence_spm, avg_power_w, max_power_w, normalized_power_w, "
+        "intensity_factor, training_stress_score, max_20min_power_w, aerobic_training_effect, "
+        "anaerobic_training_effect, training_effect_label, activity_training_load, vo2max, "
+        "body_battery_delta, water_estimated_ml, moderate_intensity_minutes, vigorous_intensity_minutes, "
+        "avg_stride_length_cm, avg_vertical_oscillation_cm, avg_ground_contact_time_ms, avg_vertical_ratio, "
+        "avg_respiration_rate, max_respiration_rate, min_respiration_rate, elevation_gain_m, elevation_loss_m, "
+        "min_elevation_m, max_elevation_m, original_file_url, manufacturer, raw_json"
+        ") VALUES ("
+        + ", ".join([
+            "@activity_id",
+            sql_string(item.get("garmin_id")),
+            sql_number(get_num(j, "duration")),
+            sql_number(get_num(j, "movingDuration")),
+            sql_number(get_num(j, "elapsedDuration")),
+            sql_number(get_num(j, "distance")),
+            sql_number(get_num(j, "calories")),
+            sql_number(get_num(j, "avgSpeed")),
+            sql_number(get_num(j, "maxSpeed")),
+            sql_int(get_int(j, "avgHeartRate")),
+            sql_int(get_int(j, "maxHeartRate")),
+            sql_number(get_num(j, "avgCadenceSpm")),
+            sql_number(get_num(j, "maxCadenceSpm")),
+            sql_int(get_int(j, "avgPower")),
+            sql_int(get_int(j, "maxPower")),
+            sql_int(get_int(j, "normPower")),
+            sql_number(get_num(j, "intensityFactor")),
+            sql_number(get_num(j, "trainingStressScore")),
+            sql_int(get_int(j, "max20MinPower")),
+            sql_number(get_num(j, "aerobicTrainingEffect")),
+            sql_number(get_num(j, "anaerobicTrainingEffect")),
+            sql_string(j.get("trainingEffectLabel")),
+            sql_number(get_num(j, "activityTrainingLoad")),
+            sql_number(get_num(j, "vO2MaxValue")),
+            sql_int(get_int(j, "differenceBodyBattery")),
+            sql_number(get_num(j, "waterEstimated")),
+            sql_int(get_int(j, "moderateIntensityMinutes")),
+            sql_int(get_int(j, "vigorousIntensityMinutes")),
+            sql_number(get_num(j, "avgStrideLength")),
+            sql_number(get_num(j, "avgVerticalOscillation")),
+            sql_number(get_num(j, "avgGroundContactTime")),
+            sql_number(get_num(j, "avgVerticalRatio")),
+            sql_number(get_num(j, "avgRespirationRate")),
+            sql_number(get_num(j, "maxRespirationRate")),
+            sql_number(get_num(j, "minRespirationRate")),
+            sql_number(get_num(j, "elevationGain")),
+            sql_number(get_num(j, "elevationLoss")),
+            sql_number(get_num(j, "minElevation")),
+            sql_number(get_num(j, "maxElevation")),
+            sql_string(j.get("originalFileUrl")),
+            sql_string(j.get("manufacturer")),
+            sql_json(j),
+        ])
+        + ");"
+    )
+
+    zone_rows = []
+    append_zone_rows(zone_rows, "@activity_id", "heart_rate", j.get("hrZone") or [], "hrZone")
+    append_zone_rows(zone_rows, "@activity_id", "power", j.get("powerZone") or [], "powerZone")
+    extras = j.get("_garminConnectExtras") if isinstance(j.get("_garminConnectExtras"), dict) else {}
+    if not j.get("hrZone"):
+        append_zone_rows(
+            zone_rows,
+            "@activity_id",
+            "heart_rate",
+            collect_zone_values(extras.get("hrTimeInZones")),
+            "_garminConnectExtras.hrTimeInZones",
+        )
+    if not j.get("powerZone"):
+        append_zone_rows(
+            zone_rows,
+            "@activity_id",
+            "power",
+            collect_zone_values(extras.get("powerTimeInZones")),
+            "_garminConnectExtras.powerTimeInZones",
+        )
+    emit_insert_values(lines, "ActivityZones", [
+        "activity_id", "zone_type", "zone_index", "duration_s", "source_field",
+    ], zone_rows, 100)
+
+
+def build_sql(activities, include_fit_messages=False, include_raw_json=False):
     lines = [
         "USE MotionAnalysis;",
         "SET FOREIGN_KEY_CHECKS = 1;",
     ]
-    for item in files:
-        path = item["path"]
-        sf_hash = item["hash"]
-        size = path.stat().st_size
+    for row in activities:
+        fit_item = row.get("fit")
+        json_item = row.get("json")
+        activity = canonical_activity(row)
+        label = activity["key"]
         lines.extend([
-            f"SELECT 'Importing {path.name}' AS status;",
+            f"SELECT 'Importing activity {label}' AS status;",
             "START TRANSACTION;",
-            f"SET @old_source_file_id = (SELECT id FROM SourceFiles WHERE file_hash = '{sf_hash}' LIMIT 1);",
-            "DELETE FROM SourceFiles WHERE id = @old_source_file_id;",
             "SET @source_file_id = NULL;",
             "SET @activity_id = NULL;",
-            "INSERT INTO SourceFiles (file_name, file_path, file_size_bytes, file_hash) VALUES ("
-            + ", ".join([sql_string(path.name), sql_string(str(path)), sql_int(size), sql_string(sf_hash)])
-            + ");",
-            "SET @source_file_id = LAST_INSERT_ID();",
         ])
-        activity = item["activity"]
         lines.append(
-            "INSERT INTO Activities (source_file_id, activity_key, activity_type, start_time_utc, raw_json) VALUES ("
+            "INSERT INTO Activities (activity_key, garmin_activity_id, activity_name, activity_type, sport_code, "
+            "sub_sport_code, start_time_utc, local_start_time, location_name, start_latitude, start_longitude, "
+            "end_latitude, end_longitude, match_status, raw_json) VALUES ("
             + ", ".join([
-                "@source_file_id",
                 sql_string(activity["key"]),
+                sql_string(activity["garmin_id"]),
+                sql_string(activity["name"]),
                 sql_string(activity["type"]),
-                sql_datetime(activity["start"]),
+                sql_int(activity["sport_code"]),
+                sql_int(activity["sub_sport_code"]),
+                sql_datetime(activity["start_utc"]),
+                sql_datetime(activity["local_start"]),
+                sql_string(activity["location"]),
+                sql_number(activity["start_latitude"]),
+                sql_number(activity["start_longitude"]),
+                sql_number(activity["end_latitude"]),
+                sql_number(activity["end_longitude"]),
+                sql_string(activity["match_status"]),
                 maybe_raw_json(activity["raw"], include_raw_json),
             ])
             + ");"
         )
         lines.append("SET @activity_id = LAST_INSERT_ID();")
-
-        session_rows = []
-        for message in item["sessions"]:
-            v = message["values"]
-            session_rows.append([
-                "@activity_id",
-                sql_datetime(as_dt(v.get("start_time"))),
-                sql_number(get_num(v, "total_elapsed_time")),
-                sql_number(get_num(v, "total_timer_time")),
-                sql_number(get_num(v, "total_moving_time")),
-                sql_number(get_num(v, "total_distance")),
-                sql_int(get_int(v, "total_calories")),
-                sql_number(get_num(v, "enhanced_avg_speed", "avg_speed")),
-                sql_number(get_num(v, "enhanced_max_speed", "max_speed")),
-                sql_int(get_int(v, "avg_heart_rate")),
-                sql_int(get_int(v, "max_heart_rate")),
-                sql_number(get_num(v, "avg_cadence")),
-                sql_number(get_num(v, "max_cadence")),
-                sql_int(get_int(v, "avg_power")),
-                sql_int(get_int(v, "max_power")),
-                sql_int(get_int(v, "total_ascent")),
-                sql_int(get_int(v, "total_descent")),
-                maybe_raw_json(v, include_raw_json),
-            ])
-        emit_insert_values(lines, "Sessions", [
-            "activity_id", "start_time_utc", "total_elapsed_time_s", "total_timer_time_s",
-            "total_moving_time_s", "total_distance_m", "total_calories", "avg_speed_mps",
-            "max_speed_mps", "avg_heart_rate_bpm", "max_heart_rate_bpm", "avg_cadence",
-            "max_cadence", "avg_power_w", "max_power_w", "total_ascent_m", "total_descent_m", "raw_json",
-        ], session_rows, 50)
-
-        lap_rows = []
-        for idx, message in enumerate(item["laps"]):
-            v = message["values"]
-            lap_rows.append([
-                "@activity_id", sql_int(idx), sql_datetime(as_dt(v.get("start_time"))),
-                sql_number(get_num(v, "total_elapsed_time")),
-                sql_number(get_num(v, "total_timer_time")),
-                sql_number(get_num(v, "total_distance")),
-                sql_number(get_num(v, "enhanced_avg_speed", "avg_speed")),
-                sql_number(get_num(v, "enhanced_max_speed", "max_speed")),
-                sql_int(get_int(v, "avg_heart_rate")),
-                sql_int(get_int(v, "max_heart_rate")),
-                sql_number(get_num(v, "avg_cadence")),
-                sql_number(get_num(v, "max_cadence")),
-                sql_int(get_int(v, "avg_power")),
-                sql_int(get_int(v, "max_power")),
-                maybe_raw_json(v, include_raw_json),
-            ])
-        emit_insert_values(lines, "Laps", [
-            "activity_id", "lap_index", "start_time_utc", "total_elapsed_time_s", "total_timer_time_s",
-            "total_distance_m", "avg_speed_mps", "max_speed_mps", "avg_heart_rate_bpm",
-            "max_heart_rate_bpm", "avg_cadence", "max_cadence", "avg_power_w", "max_power_w", "raw_json",
-        ], lap_rows, 100)
-
-        record_rows = []
-        for idx, message in enumerate(item["records"]):
-            v = message["values"]
-            record_rows.append([
-                "@activity_id", sql_int(idx), sql_datetime(as_dt(v.get("timestamp"))),
-                sql_number(get_num(v, "position_lat")),
-                sql_number(get_num(v, "position_long")),
-                sql_number(get_num(v, "enhanced_altitude", "altitude")),
-                sql_number(get_num(v, "distance")),
-                sql_number(get_num(v, "enhanced_speed", "speed")),
-                sql_int(get_int(v, "heart_rate")),
-                sql_number(get_num(v, "cadence")),
-                sql_int(get_int(v, "power")),
-                sql_int(get_int(v, "accumulated_power")),
-                sql_number(get_num(v, "vertical_oscillation")),
-                sql_number(get_num(v, "stance_time")),
-                maybe_raw_json(v, include_raw_json),
-            ])
-        emit_insert_values(lines, "TrackPoints", [
-            "activity_id", "sample_index", "sample_time_utc", "latitude", "longitude", "altitude_m",
-            "distance_m", "speed_mps", "heart_rate_bpm", "cadence", "power_w", "accumulated_power_w",
-            "vertical_oscillation_mm", "stance_time_ms", "raw_json",
-        ], record_rows, 200)
-
-        event_rows = []
-        for idx, message in enumerate(item["events"]):
-            v = message["values"]
-            event_rows.append([
-                "@activity_id", sql_int(idx), sql_datetime(as_dt(v.get("timestamp"))),
-                sql_string(v.get("event_type")),
-                sql_string(v.get("event")),
-                sql_int(get_int(v, "event_group")),
-                maybe_raw_json(v, include_raw_json),
-            ])
-        emit_insert_values(lines, "Events", [
-            "activity_id", "event_index", "event_time_utc", "event_type", "event", "event_group", "raw_json",
-        ], event_rows, 100)
-
-        if include_fit_messages:
-            msg_rows = []
-            for message in item["messages"]:
-                v = message["values"]
-                msg_rows.append([
-                    "@activity_id",
-                    sql_int(message["message_index"]),
-                    sql_int(message["global_num"]),
-                    sql_string(message["message_name"]),
-                    sql_int(message["local_num"]),
-                    sql_datetime(as_dt(v.get("timestamp") or v.get("start_time"))),
-                    sql_string(raw_json(v)),
-                ])
-            emit_insert_values(lines, "FitMessages", [
-                "activity_id", "message_index", "global_message_num", "message_name",
-                "local_message_num", "message_time_utc", "raw_json",
-            ], msg_rows, 200)
-
+        if fit_item:
+            emit_activity_source(lines, fit_item["path"], "fit", "fit", row.get("match_score"), "matched by start time, type, distance and duration" if json_item else "fit only")
+            emit_fit_rows(lines, fit_item, include_fit_messages, include_raw_json)
+        if json_item:
+            emit_activity_source(lines, json_item["path"], "garmin_json_txt", "garmin_json", row.get("match_score"), "matched by content; file name ignored" if fit_item else "json only")
+            emit_json_summary_rows(lines, json_item)
         lines.extend(["COMMIT;"])
     return "\n".join(lines) + "\n"
 
@@ -565,7 +995,9 @@ def build_sql(files, include_fit_messages=False, include_raw_json=False):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--fit-dir", default="database/data/fit")
+    parser.add_argument("--json-dir", default="database/data/json")
     parser.add_argument("--out", default="database/sql/02_import_data.sql")
+    parser.add_argument("--no-json", action="store_true", help="Only import FIT files.")
     parser.add_argument(
         "--include-fit-messages",
         action="store_true",
@@ -579,25 +1011,42 @@ def main():
     args = parser.parse_args()
 
     fit_dir = Path(args.fit_dir)
-    files = sorted(fit_dir.glob("*.fit"))
-    if not files:
+    fit_files = sorted(fit_dir.glob("*.fit"))
+    if not fit_files:
         raise SystemExit(f"No FIT files found in {fit_dir}")
-    parsed = [rows_for_file(path) for path in files]
+    parsed_fit = [rows_for_file(path) for path in fit_files]
+    parsed_json = []
+    if not args.no_json:
+        json_dir = Path(args.json_dir)
+        parsed_json = [
+            read_garmin_json(path)
+            for pattern in ("*.txt", "*.json")
+            for path in sorted(json_dir.glob(pattern))
+        ]
+    activities = merge_activities(parsed_fit, parsed_json)
     Path(args.out).write_text(
         build_sql(
-            parsed,
+            activities,
             include_fit_messages=args.include_fit_messages,
             include_raw_json=args.include_raw_json,
         ),
         encoding="utf-8",
     )
-    for item in parsed:
+    for item in parsed_fit:
         print(
             f"{item['path'].name}: "
             f"sessions={len(item['sessions'])}, laps={len(item['laps'])}, "
             f"records={len(item['records'])}, events={len(item['events'])}, "
             f"messages={len(item['messages'])}"
         )
+    print(f"JSON summaries={len(parsed_json)}, merged activities={len(activities)}")
+    for row in activities:
+        activity = canonical_activity(row)
+        fit_name = row["fit"]["path"].name if row.get("fit") else "-"
+        json_name = row["json"]["path"].name if row.get("json") else "-"
+        score = row.get("match_score")
+        score_text = "none" if score is None else f"{score:.3f}"
+        print(f"{activity['match_status']}: {activity['key']} fit={fit_name} json={json_name} score={score_text}")
     mode = "debug/full" if args.include_fit_messages or args.include_raw_json else "lean/structured"
     print(f"Wrote {args.out} ({mode} mode)")
 

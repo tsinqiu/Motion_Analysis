@@ -1,0 +1,169 @@
+{
+  "_downloadMode": "enriched",
+  "_garminConnectExtras": {
+    "hrTimeInZones": [
+      {
+        "secsInZone": 1120.917,
+        "zoneLowBoundary": 120,
+        "zoneNumber": 1
+      },
+      {
+        "secsInZone": 785.673,
+        "zoneLowBoundary": 135,
+        "zoneNumber": 2
+      },
+      {
+        "secsInZone": 36.001,
+        "zoneLowBoundary": 150,
+        "zoneNumber": 3
+      },
+      {
+        "secsInZone": 2.999,
+        "zoneLowBoundary": 165,
+        "zoneNumber": 4
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 181,
+        "zoneNumber": 5
+      }
+    ],
+    "powerTimeInZones": []
+  },
+  "accessControlRuleDTO": {
+    "typeId": 1,
+    "typeKey": "public"
+  },
+  "activityId": 603747637,
+  "activityName": "力量1",
+  "activityTypeDTO": {
+    "isHidden": false,
+    "parentTypeId": 29,
+    "restricted": false,
+    "trimmable": false,
+    "typeId": 13,
+    "typeKey": "strength_training"
+  },
+  "activityUUID": {
+    "uuid": "ff9bea20-5d22-4427-ac53-def33e503cf5"
+  },
+  "eventTypeDTO": {
+    "sortOrder": 10,
+    "typeId": 9,
+    "typeKey": "uncategorized"
+  },
+  "isMultiSportParent": false,
+  "metadataDTO": {
+    "activityImages": [],
+    "agentApplicationInstallationId": null,
+    "agentString": null,
+    "associatedCourseId": null,
+    "associatedWorkoutId": 35741275,
+    "autoCalcCalories": false,
+    "calendarEventInfo": null,
+    "childActivityTypes": [],
+    "childIds": [],
+    "deviceApplicationInstallationId": 860311,
+    "deviceMetaDataDTO": {
+      "deviceId": "3600896256",
+      "deviceTypePk": 45479,
+      "deviceVersionPk": 860311
+    },
+    "diveNumber": null,
+    "eBikeAssistModeInfoDTOList": null,
+    "eBikeBatteryRemaining": null,
+    "eBikeBatteryUsage": null,
+    "eBikeMaxAssistModes": null,
+    "elevationCorrected": false,
+    "favorite": false,
+    "fileFormat": {
+      "formatId": 7,
+      "formatKey": "fit"
+    },
+    "gcj02": false,
+    "groupRideUUID": null,
+    "hasChartData": true,
+    "hasHeatMap": false,
+    "hasHrTimeInZones": true,
+    "hasIntensityIntervals": true,
+    "hasPolyline": false,
+    "hasPowerTimeInZones": false,
+    "hasRunPowerWindData": null,
+    "hasSplits": false,
+    "isAtpActivity": null,
+    "isOriginal": true,
+    "lapCount": 1,
+    "lastUpdateDate": "2026-06-08T07:45:29.0",
+    "manualActivity": false,
+    "manufacturer": "GARMIN",
+    "personalRecord": false,
+    "runPowerWindDataEnabled": null,
+    "sensors": null,
+    "trimmed": false,
+    "uploadedDate": "2026-06-08T07:45:30.0",
+    "userInfoDto": {
+      "displayname": "dccfdc6a-96f5-40b0-9d47-b7f60b9b7f17",
+      "fullname": "陈振",
+      "profileImageUrlLarge": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prof.png",
+      "profileImageUrlMedium": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prfr.png",
+      "profileImageUrlSmall": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prth.png",
+      "userPro": false,
+      "userProfilePk": 12733831
+    },
+    "videoUrl": null
+  },
+  "splitSummaries": [
+    {
+      "averageHR": 129.0,
+      "averageSpeed": 0.0,
+      "bmrCalories": 53.0,
+      "calories": 323.0,
+      "distance": 0.0,
+      "duration": 2424.654,
+      "maxDistance": 0,
+      "maxDistanceWithPrecision": 0.0,
+      "maxHR": 170.0,
+      "movingDuration": 0.0,
+      "noOfSplits": 24,
+      "splitType": "INTERVAL_ACTIVE",
+      "totalExerciseReps": 0
+    }
+  ],
+  "summaryDTO": {
+    "activeSets": 24,
+    "activityTrainingLoad": 43.020263671875,
+    "aerobicTrainingEffectMessage": "MAINTAINING_AEROBIC_FITNESS_1",
+    "anaerobicTrainingEffect": 0.800000011920929,
+    "anaerobicTrainingEffectMessage": "NO_ANAEROBIC_BENEFIT_0",
+    "averageHR": 129.0,
+    "averageMovingSpeed": 0.0,
+    "averageSpeed": 0.0,
+    "bmrCalories": 53.0,
+    "calories": 323.0,
+    "differenceBodyBattery": -6,
+    "directWorkoutFeel": 50,
+    "directWorkoutRpe": 40,
+    "distance": 0.0,
+    "duration": 2424.654,
+    "elapsedDuration": 2848.551,
+    "maxHR": 170.0,
+    "minActivityLapDuration": 2424.654,
+    "minHR": 89.0,
+    "movingDuration": 2283.698,
+    "recoveryHeartRate": 14,
+    "startTimeGMT": "2026-06-08T06:51:56.0",
+    "startTimeLocal": "2026-06-08T14:51:56.0",
+    "steps": 0,
+    "totalExerciseReps": 0,
+    "trainingEffect": 2.0,
+    "trainingEffectLabel": "AEROBIC_BASE",
+    "waterEstimated": 530.0
+  },
+  "timeZoneUnitDTO": {
+    "factor": 0.0,
+    "timeZone": "Asia/Hong_Kong",
+    "unitId": 135,
+    "unitKey": "Asia/Hong_Kong"
+  },
+  "userProfileId": 12733831
+}

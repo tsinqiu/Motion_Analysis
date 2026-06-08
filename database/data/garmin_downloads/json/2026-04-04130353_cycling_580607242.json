@@ -1,0 +1,201 @@
+{
+  "_downloadMode": "enriched",
+  "_garminConnectExtras": {
+    "hrTimeInZones": [
+      {
+        "secsInZone": 5790.857,
+        "zoneLowBoundary": 118,
+        "zoneNumber": 1
+      },
+      {
+        "secsInZone": 216.985,
+        "zoneLowBoundary": 145,
+        "zoneNumber": 2
+      },
+      {
+        "secsInZone": 45.0,
+        "zoneLowBoundary": 159,
+        "zoneNumber": 3
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 164,
+        "zoneNumber": 4
+      },
+      {
+        "secsInZone": 0.0,
+        "zoneLowBoundary": 173,
+        "zoneNumber": 5
+      }
+    ],
+    "powerTimeInZones": []
+  },
+  "accessControlRuleDTO": {
+    "typeId": 1,
+    "typeKey": "public"
+  },
+  "activityId": 580607242,
+  "activityName": "无锡市 骑行",
+  "activityTypeDTO": {
+    "isHidden": false,
+    "parentTypeId": 17,
+    "restricted": false,
+    "trimmable": true,
+    "typeId": 2,
+    "typeKey": "cycling"
+  },
+  "activityUUID": {
+    "uuid": "45769b2d-fb3a-44ff-91e3-2e60eedf3344"
+  },
+  "eventTypeDTO": {
+    "sortOrder": 10,
+    "typeId": 9,
+    "typeKey": "uncategorized"
+  },
+  "isMultiSportParent": false,
+  "locationName": "无锡市",
+  "metadataDTO": {
+    "activityImages": [
+      {
+        "expirationTimestamp": 1781012914642,
+        "imageId": "61da8b1c3c734089aeed450c6412a432",
+        "latitude": null,
+        "longitude": null,
+        "mediumUrl": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/61da8b1c3c734089aeed450c6412a432-mdfd.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=52de228eb28ef7cb95a583153ab98ea7d075fbc4154ae7fe54cbd3c1b9adcc5a",
+        "photoDate": null,
+        "smallUrl": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/61da8b1c3c734089aeed450c6412a432-mdfd.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=52de228eb28ef7cb95a583153ab98ea7d075fbc4154ae7fe54cbd3c1b9adcc5a",
+        "url": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/61da8b1c3c734089aeed450c6412a432-larg.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=2d938ac8940990a96b5c84c684a3bd2f54785f458f4230e7b1456c47fb4abd36"
+      },
+      {
+        "expirationTimestamp": 1781012914643,
+        "imageId": "46e8da9582554e59b66d5cf9e8e06b86",
+        "latitude": null,
+        "longitude": null,
+        "mediumUrl": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/46e8da9582554e59b66d5cf9e8e06b86-mdfd.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=bac6718513b8fc32b4bcca38f8d7f28a137770f31a31bd58a5cad8f2fbe1cfe6",
+        "photoDate": null,
+        "smallUrl": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/46e8da9582554e59b66d5cf9e8e06b86-mdfd.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=bac6718513b8fc32b4bcca38f8d7f28a137770f31a31bd58a5cad8f2fbe1cfe6",
+        "url": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/46e8da9582554e59b66d5cf9e8e06b86-larg.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=5cc352cf9098421ee4ef0698556411232d4ea9e490146365041100716af75e0b"
+      },
+      {
+        "expirationTimestamp": 1781012914643,
+        "imageId": "9207f2c4216945e79f2b81766e29caae",
+        "latitude": null,
+        "longitude": null,
+        "mediumUrl": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/9207f2c4216945e79f2b81766e29caae-mdfd.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=da9e5938fb0c5afd8eb95efbe3f231d426d673411d319cf2c190efc8fd0a4972",
+        "photoDate": null,
+        "smallUrl": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/9207f2c4216945e79f2b81766e29caae-mdfd.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=da9e5938fb0c5afd8eb95efbe3f231d426d673411d319cf2c190efc8fd0a4972",
+        "url": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/9207f2c4216945e79f2b81766e29caae-larg.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=c206018db3a6139ff1c542bb6d3030857704fed97dbcc25c8194e3bd59308f6c"
+      },
+      {
+        "expirationTimestamp": 1781012914643,
+        "imageId": "34da858936e9407f8987e59da4e5dc2b",
+        "latitude": null,
+        "longitude": null,
+        "mediumUrl": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/34da858936e9407f8987e59da4e5dc2b-mdfd.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=fff74739e25d922e4180769e952aa9d8ef2dffe68d71765e3346e868229a0b2c",
+        "photoDate": null,
+        "smallUrl": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/34da858936e9407f8987e59da4e5dc2b-mdfd.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=fff74739e25d922e4180769e952aa9d8ef2dffe68d71765e3346e868229a0b2c",
+        "url": "https://garmin-connect-prod.s3.cn-north-1.amazonaws.com.cn/activity_images/34da858936e9407f8987e59da4e5dc2b-larg.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260608T134834Z&X-Amz-SignedHeaders=host&X-Amz-Expires=86400&X-Amz-Credential=AKIAZ5JW2DRNHWIXPQMX%2F20260608%2Fcn-north-1%2Fs3%2Faws4_request&X-Amz-Signature=a0d2a2549b535a594f35d63d9afe0eed146a149d89367751f63abf3e0b123af9"
+      }
+    ],
+    "agentApplicationInstallationId": null,
+    "agentString": null,
+    "associatedCourseId": null,
+    "associatedWorkoutId": null,
+    "autoCalcCalories": false,
+    "calendarEventInfo": null,
+    "childActivityTypes": [],
+    "childIds": [],
+    "deviceApplicationInstallationId": 860311,
+    "deviceMetaDataDTO": {
+      "deviceId": "3600896256",
+      "deviceTypePk": 45479,
+      "deviceVersionPk": 860311
+    },
+    "diveNumber": null,
+    "eBikeAssistModeInfoDTOList": null,
+    "eBikeBatteryRemaining": null,
+    "eBikeBatteryUsage": null,
+    "eBikeMaxAssistModes": null,
+    "elevationCorrected": false,
+    "favorite": false,
+    "fileFormat": {
+      "formatId": 7,
+      "formatKey": "fit"
+    },
+    "gcj02": false,
+    "groupRideUUID": null,
+    "hasChartData": true,
+    "hasHeatMap": false,
+    "hasHrTimeInZones": true,
+    "hasIntensityIntervals": false,
+    "hasPolyline": true,
+    "hasPowerTimeInZones": false,
+    "hasRunPowerWindData": null,
+    "hasSplits": false,
+    "isAtpActivity": null,
+    "isOriginal": false,
+    "lapCount": 15,
+    "lastUpdateDate": "2026-05-27T07:31:57.0",
+    "manualActivity": false,
+    "manufacturer": "GARMIN",
+    "personalRecord": false,
+    "runPowerWindDataEnabled": null,
+    "sensors": null,
+    "trimmed": false,
+    "uploadedDate": "2026-04-04T08:05:51.0",
+    "userInfoDto": {
+      "displayname": "dccfdc6a-96f5-40b0-9d47-b7f60b9b7f17",
+      "fullname": "陈振",
+      "profileImageUrlLarge": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prof.png",
+      "profileImageUrlMedium": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prfr.png",
+      "profileImageUrlSmall": "https://s3.cn-north-1.amazonaws.com.cn/garmin-connect-prod/profile_images/fca23093-4f2d-42c6-971d-054a20d10139-prth.png",
+      "userPro": false,
+      "userProfilePk": 12733831
+    },
+    "videoUrl": null
+  },
+  "summaryDTO": {
+    "activityTrainingLoad": 116.03755187988281,
+    "aerobicTrainingEffectMessage": "MAINTAINING_AEROBIC_BASE_7",
+    "anaerobicTrainingEffect": 2.0999999046325684,
+    "anaerobicTrainingEffectMessage": "MAINTAINING_ANAEROBIC_BASE_1",
+    "averageHR": 120.0,
+    "averageMovingSpeed": 7.019937123573003,
+    "averageSpeed": 7.004000186920166,
+    "avgElevation": 1.04,
+    "bmrCalories": 228.0,
+    "calories": 1109.0,
+    "differenceBodyBattery": -22,
+    "directWorkoutFeel": 50,
+    "directWorkoutRpe": 60,
+    "distance": 72468.46,
+    "duration": 10347.171,
+    "elapsedDuration": 10883.169,
+    "elevationGain": 371.0,
+    "elevationLoss": 362.0,
+    "endLatitude": 31.495150364935398,
+    "endLongitude": 120.27277266606688,
+    "maxElevation": 27.4,
+    "maxHR": 163.0,
+    "maxSpeed": 14.02400016784668,
+    "maxVerticalSpeed": 1.6000001430511475,
+    "minActivityLapDuration": 337.13,
+    "minElevation": -8.0,
+    "minHR": 57.0,
+    "movingDuration": 10323.235,
+    "startLatitude": 31.489647142589092,
+    "startLongitude": 120.26167552918196,
+    "startTimeGMT": "2026-04-04T05:03:53.0",
+    "startTimeLocal": "2026-04-04T13:03:53.0",
+    "trainingEffect": 2.9000000953674316,
+    "trainingEffectLabel": "AEROBIC_BASE",
+    "waterEstimated": 2108.0
+  },
+  "timeZoneUnitDTO": {
+    "factor": 0.0,
+    "timeZone": "Asia/Hong_Kong",
+    "unitId": 135,
+    "unitKey": "Asia/Hong_Kong"
+  },
+  "userProfileId": 12733831
+}
