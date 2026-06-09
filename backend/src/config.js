@@ -33,7 +33,8 @@ const config = {
     waitForConnections: true,
     connectionLimit: parseInteger(process.env.DB_CONNECTION_LIMIT, 10),
     queueLimit: 0,
-    decimalNumbers: true
+    decimalNumbers: true,
+    dateStrings: true
   },
   cors: {
     origins: parseCorsOrigins(process.env.CORS_ORIGIN)
