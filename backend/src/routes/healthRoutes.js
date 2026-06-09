@@ -1,6 +1,8 @@
 const express = require('express');
 const defaultHealthService = require('../services/healthService');
 const { asyncHandler } = require('../http');
+const statsCache = require('../cache/statsCache');
+const { sendData } = require('../response');
 
 function createHealthRouter(healthService = defaultHealthService) {
   const router = express.Router();
@@ -9,9 +11,12 @@ function createHealthRouter(healthService = defaultHealthService) {
     '/health',
     asyncHandler(async (req, res) => {
       const database = await healthService.checkDatabase();
-      res.json({
+      sendData(res, {
         status: database.ok ? 'ok' : 'degraded',
-        database
+        database,
+        cache: {
+          stats: statsCache.stats()
+        }
       });
     })
   );

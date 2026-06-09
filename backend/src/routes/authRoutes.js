@@ -3,6 +3,7 @@ const defaultAuthService = require('../services/authService');
 const { ApiError } = require('../errors');
 const { asyncHandler } = require('../http');
 const { authenticate } = require('../middleware/authMiddleware');
+const { sendCreated, sendData } = require('../response');
 
 function requireText(value, name, { min = 1, max = 255 } = {}) {
   const text = String(value || '').trim();
@@ -33,7 +34,7 @@ function createAuthRouter(authService = defaultAuthService) {
       };
 
       const result = await authService.register(payload);
-      res.status(201).json(result);
+      sendCreated(res, result);
     })
   );
 
@@ -44,7 +45,7 @@ function createAuthRouter(authService = defaultAuthService) {
         email: requireEmail(req.body.email),
         password: requireText(req.body.password, 'password', { min: 1, max: 200 })
       });
-      res.json(result);
+      sendData(res, result);
     })
   );
 
@@ -52,7 +53,7 @@ function createAuthRouter(authService = defaultAuthService) {
     '/auth/me',
     authenticate(authService),
     asyncHandler(async (req, res) => {
-      res.json({ user: req.user });
+      sendData(res, { user: req.user });
     })
   );
 

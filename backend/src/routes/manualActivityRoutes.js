@@ -2,8 +2,10 @@ const express = require('express');
 const defaultManualActivityService = require('../services/manualActivityService');
 const defaultAuthService = require('../services/authService');
 const { ApiError } = require('../errors');
-const { asyncHandler, parsePositiveId } = require('../http');
+const { asyncHandler, parseActivityType, parseOptionalNumber, parsePositiveId } = require('../http');
 const { authenticate } = require('../middleware/authMiddleware');
+const statsCache = require('../cache/statsCache');
+const { sendCreated, sendData } = require('../response');
 
 const NUMERIC_LIMITS = {
   distanceM: { min: 1, max: 200000, required: true },
@@ -63,21 +65,28 @@ function parseNumberField(body, name, limits) {
     return null;
   }
 
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric) || numeric < limits.min || numeric > limits.max) {
-    throw new ApiError(400, `${name} must be from ${limits.min} to ${limits.max}`, 'INVALID_MANUAL_ACTIVITY');
+  try {
+    return parseOptionalNumber(value, name, limits);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw new ApiError(error.statusCode, error.message, 'INVALID_MANUAL_ACTIVITY');
+    }
+    throw error;
   }
-  return numeric;
 }
 
 function parseManualActivity(body) {
   const payload = {
-    activityType: requiredText(body.activityType || body.activity_type, 'activityType', 80),
+    activityType: parseActivityType(body.activityType || body.activity_type),
     activityName: optionalText(body.activityName || body.activity_name, 200),
     localStartTime: parseDateTime(body.localStartTime || body.local_start_time, 'localStartTime'),
     startTimeUtc: body.startTimeUtc || body.start_time_utc ? parseDateTime(body.startTimeUtc || body.start_time_utc, 'startTimeUtc') : null,
     locationName: optionalText(body.locationName || body.location_name, 200)
   };
+
+  if (!payload.activityType) {
+    throw new ApiError(400, 'activityType is required', 'INVALID_MANUAL_ACTIVITY');
+  }
 
   for (const [name, limits] of Object.entries(NUMERIC_LIMITS)) {
     payload[name] = parseNumberField(body, name, limits);
@@ -121,7 +130,8 @@ function createManualActivityRouter({
     requireAuth,
     asyncHandler(async (req, res) => {
       const activity = await manualActivityService.createManualActivity(parseManualActivity(req.body), req.user);
-      res.status(201).json(activity);
+      statsCache.clear();
+      sendCreated(res, activity);
     })
   );
 
@@ -130,7 +140,7 @@ function createManualActivityRouter({
     requireAuth,
     asyncHandler(async (req, res) => {
       const activity = await manualActivityService.getManualActivity(parsePositiveId(req.params.id), req.user);
-      res.json(activity);
+      sendData(res, activity);
     })
   );
 
@@ -143,7 +153,8 @@ function createManualActivityRouter({
         parseManualActivity(req.body),
         req.user
       );
-      res.json(activity);
+      statsCache.clear();
+      sendData(res, activity);
     })
   );
 
@@ -152,7 +163,8 @@ function createManualActivityRouter({
     requireAuth,
     asyncHandler(async (req, res) => {
       const result = await manualActivityService.deleteManualActivity(parsePositiveId(req.params.id), req.user);
-      res.json(result);
+      statsCache.clear();
+      sendData(res, result);
     })
   );
 

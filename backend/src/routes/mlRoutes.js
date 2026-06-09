@@ -2,6 +2,7 @@ const express = require('express');
 const defaultMlService = require('../services/mlService');
 const { ApiError } = require('../errors');
 const { asyncHandler } = require('../http');
+const { sendData } = require('../response');
 
 const FEATURE_LIMITS = {
   distanceM: { min: 1, max: 200000 },
@@ -73,7 +74,7 @@ function createMlRouter(mlService = defaultMlService) {
     '/ml/health',
     asyncHandler(async (req, res) => {
       const status = await mlService.getHealth();
-      res.json(status);
+      sendData(res, status);
     })
   );
 
@@ -82,7 +83,7 @@ function createMlRouter(mlService = defaultMlService) {
     asyncHandler(async (req, res) => {
       const features = parseRunningFeatures(req.body, mlService.FEATURE_NAMES);
       const prediction = await mlService.runPrediction(features);
-      res.json(prediction);
+      sendData(res, prediction);
     })
   );
 

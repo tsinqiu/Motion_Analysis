@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const createApp = require('../src/app');
+const statsCache = require('../src/cache/statsCache');
 
 function buildApp(overrides = {}) {
   const healthService = overrides.healthService || {
@@ -9,7 +10,7 @@ function buildApp(overrides = {}) {
   };
 
   const activityService = overrides.activityService || {
-    listActivities: async () => [{ id: 1, activityType: 'running' }],
+    listActivities: async () => ({ items: [{ id: 1, activityType: 'running' }], page: 1, pageSize: 50, total: 1, totalPages: 1 }),
     getActivityById: async (id) => (id === 1 ? { id: 1, activityType: 'running' } : null),
     activityExists: async (id) => id === 1,
     getTrackPoints: async () => [{ sampleIndex: 0, heartRateBpm: 150 }],
@@ -19,7 +20,9 @@ function buildApp(overrides = {}) {
     getZones: async () => [{ zoneType: 'heart_rate', zoneIndex: 1, durationS: 300 }],
     getActivityTypeStats: async () => [{ activityType: 'running', activityCount: 1 }],
     getSummaryStats: async () => ({ activityCount: 1, totalDistanceKm: 5 }),
-    getTimelineStats: async () => [{ period: '2026-06-01', activityCount: 1 }]
+    getTimelineStats: async () => [{ period: '2026-06-01', activityCount: 1 }],
+    getHeartRateZones: async () => [{ zone: 'Zone 1', label: '轻松' }],
+    getPersonalBests: async () => ({ activityType: 'running' })
   };
 
   const mlService = overrides.mlService || {
@@ -100,8 +103,9 @@ test('GET /api/health returns service and database status', async () => {
   const response = await request(buildApp()).get('/api/health');
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.status, 'ok');
-  assert.equal(response.body.database.ok, true);
+  assert.equal(response.body.data.status, 'ok');
+  assert.equal(response.body.data.database.ok, true);
+  assert.equal(typeof response.body.data.cache.stats.size, 'number');
 });
 
 test('GET /api/health reports degraded database state', async () => {
@@ -114,8 +118,8 @@ test('GET /api/health reports degraded database state', async () => {
   ).get('/api/health');
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.status, 'degraded');
-  assert.equal(response.body.database.ok, false);
+  assert.equal(response.body.data.status, 'degraded');
+  assert.equal(response.body.data.database.ok, false);
 });
 
 test('GET /api/activities validates limit', async () => {
@@ -132,7 +136,7 @@ test('GET /api/activities passes filters and sort options', async () => {
     activityService: {
       listActivities: async (filters) => {
         captured = filters;
-        return [];
+        return { items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 };
       },
       getActivityById: async () => null,
       activityExists: async () => true,
@@ -152,6 +156,8 @@ test('GET /api/activities passes filters and sort options', async () => {
   );
 
   assert.equal(response.status, 200);
+  assert.deepEqual(response.body.data, []);
+  assert.deepEqual(response.body.meta, { page: 1, pageSize: 20, total: 0, totalPages: 0 });
   assert.deepEqual(captured, {
     activityType: 'running',
     startDate: '2026-06-01',
@@ -200,6 +206,7 @@ test('GET /api/activities/:id/track-points uses default paging', async () => {
   const response = await request(app).get('/api/activities/1/track-points');
 
   assert.equal(response.status, 200);
+  assert.deepEqual(response.body.data, []);
   assert.deepEqual(captured, {
     activityId: 1,
     paging: { limit: 1000, offset: 0 }
@@ -237,6 +244,7 @@ test('GET /api/stats/summary passes date filters', async () => {
   const response = await request(app).get('/api/stats/summary?start_date=2026-06-01&end_date=2026-06-09');
 
   assert.equal(response.status, 200);
+  assert.deepEqual(response.body.data, { activityCount: 2 });
   assert.deepEqual(captured, {
     activityType: undefined,
     startDate: '2026-06-01',
@@ -259,8 +267,8 @@ test('GET /api/ml/health returns model status', async () => {
   const response = await request(buildApp()).get('/api/ml/health');
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.status, 'ok');
-  assert.equal(response.body.modelVersion, 'running-v1');
+  assert.equal(response.body.data.status, 'ok');
+  assert.equal(response.body.data.modelVersion, 'running-v1');
 });
 
 test('POST /api/ml/running-prediction validates missing feature', async () => {
@@ -291,9 +299,9 @@ test('POST /api/ml/running-prediction returns running analysis result', async ()
   const response = await request(buildApp()).post('/api/ml/running-prediction').send(payload);
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.predictedTrainingLoadLevel, 'medium');
-  assert.equal(response.body.fatigueRisk, 'medium');
-  assert.equal(response.body.modelVersion, 'running-v1');
+  assert.equal(response.body.data.predictedTrainingLoadLevel, 'medium');
+  assert.equal(response.body.data.fatigueRisk, 'medium');
+  assert.equal(response.body.data.modelVersion, 'running-v1');
 });
 
 test('POST /api/ml/running-prediction allows local API origin', async () => {
@@ -320,7 +328,7 @@ test('POST /api/ml/running-prediction allows local API origin', async () => {
     .send(payload);
 
   assert.equal(response.status, 200);
-  assert.equal(response.body.predictedTrainingLoadLevel, 'medium');
+  assert.equal(response.body.data.predictedTrainingLoadLevel, 'medium');
 });
 
 test('POST /api/auth/register returns user and token', async () => {
@@ -329,8 +337,8 @@ test('POST /api/auth/register returns user and token', async () => {
     .send({ username: 'tester', email: 'tester@example.com', password: 'password123' });
 
   assert.equal(response.status, 201);
-  assert.equal(response.body.token, 'registered-token');
-  assert.equal(response.body.user.email, 'tester@example.com');
+  assert.equal(response.body.data.token, 'registered-token');
+  assert.equal(response.body.data.user.email, 'tester@example.com');
 });
 
 test('GET /api/auth/me requires token', async () => {
@@ -375,6 +383,7 @@ test('GET /api/activities owner=mine passes user id', async () => {
     .set('Authorization', 'Bearer valid-user-token');
 
   assert.equal(response.status, 200);
+  assert.deepEqual(response.body.data, []);
   assert.equal(captured.owner, 'mine');
   assert.equal(captured.ownerUserId, 2);
   assert.equal(captured.keyword, 'Manual');
@@ -416,8 +425,92 @@ test('POST /api/manual-activities creates manual activity without running ML pre
     .send(manualPayload);
 
   assert.equal(response.status, 201);
-  assert.equal(response.body.id, 99);
+  assert.equal(response.body.data.id, 99);
   assert.equal(capturedPayload.user.id, 2);
   assert.equal(capturedPayload.payload.activityType, 'running');
   assert.equal(predictionCalled, false);
+});
+
+test('GET /api/activities returns unified paged response', async () => {
+  const response = await request(buildApp()).get('/api/activities?page=1&page_size=5');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body.data, [{ id: 1, activityType: 'running' }]);
+  assert.deepEqual(response.body.meta, {
+    page: 1,
+    pageSize: 50,
+    total: 1,
+    totalPages: 1
+  });
+});
+
+test('GET /api/stats/summary uses stats cache for repeated query', async () => {
+  statsCache.clear();
+  let calls = 0;
+  const app = buildApp({
+    activityService: {
+      listActivities: async () => ({ items: [], page: 1, pageSize: 50, total: 0, totalPages: 0 }),
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async () => {
+        calls += 1;
+        return { activityCount: calls };
+      },
+      getTimelineStats: async () => [],
+      getHeartRateZones: async () => [],
+      getPersonalBests: async () => ({})
+    }
+  });
+
+  const first = await request(app).get('/api/stats/summary?activity_type=running');
+  const second = await request(app).get('/api/stats/summary?activity_type=running');
+
+  assert.equal(first.body.data.activityCount, 1);
+  assert.equal(second.body.data.activityCount, 1);
+  assert.equal(first.body.meta.cache.hit, false);
+  assert.equal(second.body.meta.cache.hit, true);
+  assert.equal(calls, 1);
+  statsCache.clear();
+});
+
+test('POST /api/manual-activities clears stats cache', async () => {
+  statsCache.clear();
+  let calls = 0;
+  const app = buildApp({
+    activityService: {
+      listActivities: async () => ({ items: [], page: 1, pageSize: 50, total: 0, totalPages: 0 }),
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async () => {
+        calls += 1;
+        return { activityCount: calls };
+      },
+      getTimelineStats: async () => [],
+      getHeartRateZones: async () => [],
+      getPersonalBests: async () => ({})
+    }
+  });
+
+  await request(app).get('/api/stats/summary?activity_type=running');
+  await request(app)
+    .post('/api/manual-activities')
+    .set('Authorization', 'Bearer valid-user-token')
+    .send(manualPayload);
+  const afterWrite = await request(app).get('/api/stats/summary?activity_type=running');
+
+  assert.equal(afterWrite.body.data.activityCount, 2);
+  assert.equal(calls, 2);
+  statsCache.clear();
 });

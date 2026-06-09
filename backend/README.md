@@ -64,6 +64,14 @@ ADMIN_EMAIL
 ADMIN_PASSWORD
 ```
 
+三期性能优化新增了常用查询索引。如果数据库已存在，再执行：
+
+```text
+database/sql/05_performance_indexes.sql
+```
+
+该脚本是幂等的，重复执行不会因为索引已存在而失败。
+
 ## 接口
 
 接口说明见：
@@ -99,6 +107,26 @@ backend/docs/api.md
 
 活动列表和统计接口支持 `start_date`、`end_date`、`activity_type`、`keyword`、`source`、`owner` 等查询参数，日期格式为 `YYYY-MM-DD`。活动列表支持 `page`、`page_size`、`limit`、`offset`、`sort_by` 和 `sort_order`。
 
+成功响应统一使用：
+
+```json
+{
+  "data": {},
+  "meta": {}
+}
+```
+
+分页接口使用 `data` 返回列表，`meta` 返回 `page`、`pageSize`、`total`、`totalPages`。错误响应保持：
+
+```json
+{
+  "error": {
+    "code": "INVALID_QUERY",
+    "message": "..."
+  }
+}
+```
+
 ## 注册登录和手动上传
 
 开放注册默认创建普通用户。所有写数据接口都需要：
@@ -110,6 +138,23 @@ Authorization: Bearer <token>
 手动上传首版只保存活动摘要数据，不保存逐秒轨迹点。上传成功后不会自动调用模型预测，前端可以单独提供“预测”按钮调用 `POST /api/ml/running-prediction`。
 
 现有 Garmin 导入数据归管理员所有；普通用户只能修改或删除自己手动上传的数据。
+
+## 查询校验和统计缓存
+
+后端会校验分页、排序、日期、关键词、来源、归属和手动上传数值，前端传入非法参数时返回 `400`。主要限制包括：
+
+- `page_size` 最大 200。
+- `keyword` 最大 100 字符。
+- 日期格式必须是 `YYYY-MM-DD`，已传入的日期范围最大 1095 天。
+- `sort_by`、`sort_order`、`owner`、`source` 必须来自后端白名单。
+
+统计接口使用轻量内存缓存，默认 TTL 为 60 秒，可通过 `.env` 调整：
+
+```text
+STATS_CACHE_TTL_SECONDS=60
+```
+
+手动上传、修改、删除活动后会清空统计缓存，避免用户写入后长时间看到旧统计。`GET /api/health` 会返回统计缓存是否启用、TTL 和当前缓存条目数。
 
 ## Running 模型拓展
 

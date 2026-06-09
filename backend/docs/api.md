@@ -18,13 +18,16 @@ Register and login return:
 
 ```json
 {
-  "user": {
-    "id": 2,
-    "username": "tester",
-    "email": "tester@example.com",
-    "role": "user"
+  "data": {
+    "user": {
+      "id": 2,
+      "username": "tester",
+      "email": "tester@example.com",
+      "role": "user"
+    },
+    "token": "jwt-token"
   },
-  "token": "jwt-token"
+  "meta": {}
 }
 ```
 
@@ -50,11 +53,13 @@ GET /api/activities/:id/zones
 
 ```json
 {
-  "items": [],
-  "page": 1,
-  "pageSize": 20,
-  "total": 138,
-  "totalPages": 7
+  "data": [],
+  "meta": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 138,
+    "totalPages": 7
+  }
 }
 ```
 
@@ -63,12 +68,14 @@ Supported query parameters:
 - `page`, `page_size`: preferred pagination.
 - `limit`, `offset`: backwards-compatible pagination.
 - `activity_type`: activity type such as `running`.
-- `start_date`, `end_date`: local date range in `YYYY-MM-DD`.
-- `keyword`: searches activity name, location, and activity type.
+- `start_date`, `end_date`: local date range in `YYYY-MM-DD`; if both are provided, the range must be 1095 days or less.
+- `keyword`: searches activity name, location, and activity type; maximum length is 100 characters.
 - `source`: `garmin_import` or `manual_upload`.
 - `owner`: `all`, `admin`, or `mine`; `mine` requires login.
 - `sort_by`: `local_start_time`, `distance_m`, `duration_s`, `avg_heart_rate_bpm`, `max_heart_rate_bpm`, `avg_pace`, `activity_training_load`.
 - `sort_order`: `asc` or `desc`.
+
+`page_size` is capped at 200. Track point, heart-rate, and speed endpoints keep their own higher `limit` caps so the frontend can request chart data without loading the full table.
 
 ## Manual Upload
 
@@ -119,6 +126,12 @@ Stats endpoints support the same filters as activities where relevant: `activity
 
 Summary includes total count, total distance, total duration, average pace, average heart rate, longest distance, fastest pace, and total training load.
 
+Stats endpoints are cached in memory. Cache keys include route, query parameters, and user identity. Manual activity create/update/delete clears this cache. The default TTL is configured by:
+
+```text
+STATS_CACHE_TTL_SECONDS=60
+```
+
 Heart-rate zones return professional labels:
 
 ```text
@@ -165,17 +178,40 @@ It returns:
 
 ```json
 {
-  "predictedTrainingLoadLevel": "medium",
-  "fatigueRisk": "low",
-  "recoveryAdvice": "string",
-  "confidence": 0.82,
-  "modelVersion": "running-v1"
+  "data": {
+    "predictedTrainingLoadLevel": "medium",
+    "fatigueRisk": "low",
+    "recoveryAdvice": "string",
+    "confidence": 0.82,
+    "modelVersion": "running-v1"
+  },
+  "meta": {}
 }
 ```
 
 ## Response Style
 
-Successful responses return plain JSON business data.
+Successful responses use:
+
+```json
+{
+  "data": {},
+  "meta": {}
+}
+```
+
+Stats endpoints include cache metadata:
+
+```json
+{
+  "data": {},
+  "meta": {
+    "cache": {
+      "hit": false
+    }
+  }
+}
+```
 
 Errors return:
 
@@ -198,3 +234,11 @@ npm run seed:admin
 ```
 
 `database/sql/04_auth_manual_upload.sql` must be applied once before seeding if the database was created before auth/manual upload existed.
+
+Apply the phase-three performance indexes once:
+
+```sql
+source database/sql/05_performance_indexes.sql;
+```
+
+The script is idempotent and can be re-run safely.

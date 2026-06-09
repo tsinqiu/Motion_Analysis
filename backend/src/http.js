@@ -27,6 +27,10 @@ function parseLimit(value, fallback = 1000, max = 5000) {
   return parsed;
 }
 
+function parsePageSize(value, fallback = 50, max = 200) {
+  return parseLimit(value, fallback, max);
+}
+
 function parseOffset(value) {
   if (value === undefined) {
     return 0;
@@ -82,7 +86,7 @@ function parseEnum(value, allowed, name, fallback) {
   return value;
 }
 
-function parseDateRange(query) {
+function parseDateRange(query, { maxDays } = {}) {
   const startDate = parseDate(query.start_date, 'start_date');
   const endDate = parseDate(query.end_date, 'end_date');
 
@@ -90,16 +94,76 @@ function parseDateRange(query) {
     throw new ApiError(400, 'start_date must be earlier than or equal to end_date', 'INVALID_QUERY');
   }
 
+  if (startDate && endDate && maxDays) {
+    const start = new Date(`${startDate}T00:00:00.000Z`);
+    const end = new Date(`${endDate}T00:00:00.000Z`);
+    const days = Math.floor((end - start) / 86400000) + 1;
+    if (days > maxDays) {
+      throw new ApiError(400, `date range must be ${maxDays} days or less`, 'INVALID_QUERY');
+    }
+  }
+
   return { startDate, endDate };
+}
+
+function parseKeyword(value, max = 100) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  const text = String(value).trim();
+  if (text.length > max) {
+    throw new ApiError(400, `keyword must be at most ${max} characters`, 'INVALID_QUERY');
+  }
+
+  return text || undefined;
+}
+
+function parseActivityType(value) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  const text = String(value).trim();
+  if (!/^[a-zA-Z0-9_ -]{1,80}$/.test(text)) {
+    throw new ApiError(400, 'activity_type contains unsupported characters', 'INVALID_QUERY');
+  }
+
+  return text;
+}
+
+function parseSort(query, allowedFields, defaultField = 'local_start_time') {
+  return {
+    sortBy: parseEnum(query.sort_by, allowedFields, 'sort_by', defaultField),
+    sortOrder: parseEnum(query.sort_order, ['asc', 'desc'], 'sort_order', 'desc')
+  };
+}
+
+function parseOptionalNumber(value, name, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < min || numeric > max) {
+    throw new ApiError(400, `${name} must be from ${min} to ${max}`, 'INVALID_INPUT');
+  }
+
+  return numeric;
 }
 
 module.exports = {
   asyncHandler,
   parsePositiveId,
   parseLimit,
+  parsePageSize,
   parseOffset,
   parsePage,
   parseDate,
   parseEnum,
-  parseDateRange
+  parseDateRange,
+  parseKeyword,
+  parseActivityType,
+  parseSort,
+  parseOptionalNumber
 };

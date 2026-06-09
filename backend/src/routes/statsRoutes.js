@@ -2,40 +2,43 @@ const express = require('express');
 const defaultActivityService = require('../services/activityService');
 const defaultAuthService = require('../services/authService');
 const { ApiError } = require('../errors');
-const { asyncHandler, parseDateRange, parseEnum } = require('../http');
+const { asyncHandler, parseActivityType, parseDateRange, parseEnum, parseKeyword } = require('../http');
 const { optionalAuthenticate } = require('../middleware/authMiddleware');
+const statsCache = require('../cache/statsCache');
+const { sendData } = require('../response');
 
 const TIMELINE_GROUPS = ['day', 'month'];
 const OWNER_FILTERS = ['all', 'admin', 'mine'];
 const SOURCE_FILTERS = ['garmin_import', 'manual_upload'];
 
-function keyword(value) {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-  const text = String(value).trim();
-  if (text.length > 100) {
-    throw new ApiError(400, 'keyword must be at most 100 characters', 'INVALID_QUERY');
-  }
-  return text || undefined;
-}
-
 function parseStatsFilters(query, user) {
-  const { startDate, endDate } = parseDateRange(query);
+  const { startDate, endDate } = parseDateRange(query, { maxDays: 1095 });
   const owner = parseEnum(query.owner, OWNER_FILTERS, 'owner', 'all');
   if (owner === 'mine' && !user) {
     throw new ApiError(401, 'login is required to filter your activities', 'AUTH_REQUIRED');
   }
 
   return {
-    activityType: query.activity_type,
+    activityType: parseActivityType(query.activity_type),
     startDate,
     endDate,
-    keyword: keyword(query.keyword),
+    keyword: parseKeyword(query.keyword),
     source: parseEnum(query.source, SOURCE_FILTERS, 'source', undefined),
     owner,
     ownerUserId: user?.id
   };
+}
+
+async function sendCachedStats(req, res, loader) {
+  const cached = statsCache.get(req);
+  if (cached) {
+    sendData(res, cached, { cache: { hit: true } });
+    return;
+  }
+
+  const data = await loader();
+  statsCache.set(req, data);
+  sendData(res, data, { cache: { hit: false } });
 }
 
 function createStatsRouter(activityService = defaultActivityService, authService = defaultAuthService) {
@@ -46,8 +49,9 @@ function createStatsRouter(activityService = defaultActivityService, authService
     '/stats/activity-types',
     maybeAuth,
     asyncHandler(async (req, res) => {
-      const stats = await activityService.getActivityTypeStats(parseStatsFilters(req.query, req.user));
-      res.json(stats);
+      await sendCachedStats(req, res, () =>
+        activityService.getActivityTypeStats(parseStatsFilters(req.query, req.user))
+      );
     })
   );
 
@@ -55,8 +59,9 @@ function createStatsRouter(activityService = defaultActivityService, authService
     '/stats/summary',
     maybeAuth,
     asyncHandler(async (req, res) => {
-      const stats = await activityService.getSummaryStats(parseStatsFilters(req.query, req.user));
-      res.json(stats);
+      await sendCachedStats(req, res, () =>
+        activityService.getSummaryStats(parseStatsFilters(req.query, req.user))
+      );
     })
   );
 
@@ -65,11 +70,12 @@ function createStatsRouter(activityService = defaultActivityService, authService
     maybeAuth,
     asyncHandler(async (req, res) => {
       const groupBy = parseEnum(req.query.group_by, TIMELINE_GROUPS, 'group_by', 'day');
-      const stats = await activityService.getTimelineStats({
-        ...parseStatsFilters(req.query, req.user),
-        groupBy
-      });
-      res.json(stats);
+      await sendCachedStats(req, res, () =>
+        activityService.getTimelineStats({
+          ...parseStatsFilters(req.query, req.user),
+          groupBy
+        })
+      );
     })
   );
 
@@ -77,8 +83,9 @@ function createStatsRouter(activityService = defaultActivityService, authService
     '/stats/heart-rate-zones',
     maybeAuth,
     asyncHandler(async (req, res) => {
-      const stats = await activityService.getHeartRateZones(parseStatsFilters(req.query, req.user));
-      res.json(stats);
+      await sendCachedStats(req, res, () =>
+        activityService.getHeartRateZones(parseStatsFilters(req.query, req.user))
+      );
     })
   );
 
@@ -86,8 +93,9 @@ function createStatsRouter(activityService = defaultActivityService, authService
     '/stats/personal-bests',
     maybeAuth,
     asyncHandler(async (req, res) => {
-      const stats = await activityService.getPersonalBests(parseStatsFilters(req.query, req.user));
-      res.json(stats);
+      await sendCachedStats(req, res, () =>
+        activityService.getPersonalBests(parseStatsFilters(req.query, req.user))
+      );
     })
   );
 

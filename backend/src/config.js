@@ -63,6 +63,9 @@ const config = {
       password: process.env.ADMIN_PASSWORD || 'admin123456'
     }
   },
+  cache: {
+    statsTtlSeconds: parseInteger(process.env.STATS_CACHE_TTL_SECONDS, 60)
+  },
   ml: {
     pythonPath: process.env.ML_PYTHON_PATH || 'python',
     scriptPath:
