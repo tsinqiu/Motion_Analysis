@@ -1,7 +1,17 @@
 const express = require('express');
 const defaultActivityService = require('../services/activityService');
 const { ApiError } = require('../errors');
-const { asyncHandler, parseLimit, parseOffset, parsePositiveId } = require('../http');
+const {
+  asyncHandler,
+  parseDateRange,
+  parseEnum,
+  parseLimit,
+  parseOffset,
+  parsePositiveId
+} = require('../http');
+
+const ACTIVITY_SORT_FIELDS = ['local_start_time', 'distance_m', 'duration_s', 'activity_training_load'];
+const SORT_ORDERS = ['asc', 'desc'];
 
 function createActivityRouter(activityService = defaultActivityService) {
   const router = express.Router();
@@ -18,10 +28,17 @@ function createActivityRouter(activityService = defaultActivityService) {
     asyncHandler(async (req, res) => {
       const limit = parseLimit(req.query.limit, 50, 200);
       const offset = parseOffset(req.query.offset);
+      const { startDate, endDate } = parseDateRange(req.query);
+      const sortBy = parseEnum(req.query.sort_by, ACTIVITY_SORT_FIELDS, 'sort_by', 'local_start_time');
+      const sortOrder = parseEnum(req.query.sort_order, SORT_ORDERS, 'sort_order', 'desc');
       const activities = await activityService.listActivities({
         activityType: req.query.activity_type,
+        startDate,
+        endDate,
         limit,
-        offset
+        offset,
+        sortBy,
+        sortOrder
       });
 
       res.json(activities);
@@ -59,8 +76,10 @@ function createActivityRouter(activityService = defaultActivityService) {
     '/activities/:id/heart-rate',
     asyncHandler(async (req, res) => {
       const activityId = parsePositiveId(req.params.id, 'activity id');
+      const limit = parseLimit(req.query.limit, 2000, 10000);
+      const offset = parseOffset(req.query.offset);
       await requireActivity(activityId);
-      const series = await activityService.getHeartRateSeries(activityId);
+      const series = await activityService.getHeartRateSeries(activityId, { limit, offset });
 
       res.json(series);
     })
@@ -70,8 +89,10 @@ function createActivityRouter(activityService = defaultActivityService) {
     '/activities/:id/speed',
     asyncHandler(async (req, res) => {
       const activityId = parsePositiveId(req.params.id, 'activity id');
+      const limit = parseLimit(req.query.limit, 2000, 10000);
+      const offset = parseOffset(req.query.offset);
       await requireActivity(activityId);
-      const series = await activityService.getSpeedSeries(activityId);
+      const series = await activityService.getSpeedSeries(activityId, { limit, offset });
 
       res.json(series);
     })

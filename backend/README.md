@@ -62,6 +62,37 @@ backend/docs/api.md
 - `GET /api/activities/:id/speed`
 - `GET /api/activities/:id/laps`
 - `GET /api/activities/:id/zones`
+- `GET /api/stats/summary`
 - `GET /api/stats/activity-types`
+- `GET /api/stats/timeline`
+- `GET /api/ml/health`
+- `POST /api/ml/running-prediction`
+
+活动列表和统计接口支持 `start_date`、`end_date`、`activity_type` 等查询参数，日期格式为 `YYYY-MM-DD`。活动列表还支持 `limit`、`offset`、`sort_by` 和 `sort_order`。
+
+## Running 模型拓展
+
+ML 拓展是额外功能，不影响主业务接口。首版只服务 `running`，根据跑步指标预测训练负荷等级、疲劳风险和恢复建议。
+
+安装 Python 依赖：
+
+```powershell
+python -m pip install -r ml/requirements.txt
+```
+
+训练模型：
+
+```powershell
+python ml/train_running_model.py
+```
+
+训练完成后会生成：
+
+```text
+backend/ml/models/running_model.joblib
+backend/ml/models/running_model_metadata.json
+```
+
+如果模型文件不存在，`GET /api/ml/health` 会返回不可用状态，主业务接口仍可正常使用。
 
 真实数据库账号、密码和连接串不要提交到 GitHub。只保留 `.env.example`。

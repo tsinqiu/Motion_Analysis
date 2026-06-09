@@ -17,10 +17,39 @@ function buildApp(overrides = {}) {
     getSpeedSeries: async () => [{ sampleTimeUtc: '2026-06-01T00:00:00.000Z', speedMps: 3.2 }],
     getLaps: async () => [{ lapIndex: 0, totalDistanceM: 1000 }],
     getZones: async () => [{ zoneType: 'heart_rate', zoneIndex: 1, durationS: 300 }],
-    getActivityTypeStats: async () => [{ activityType: 'running', activityCount: 1 }]
+    getActivityTypeStats: async () => [{ activityType: 'running', activityCount: 1 }],
+    getSummaryStats: async () => ({ activityCount: 1, totalDistanceKm: 5 }),
+    getTimelineStats: async () => [{ period: '2026-06-01', activityCount: 1 }]
   };
 
-  return createApp({ healthService, activityService });
+  const mlService = overrides.mlService || {
+    FEATURE_NAMES: [
+      'distanceM',
+      'durationS',
+      'movingDurationS',
+      'elapsedDurationS',
+      'avgSpeedMps',
+      'maxSpeedMps',
+      'avgHeartRateBpm',
+      'maxHeartRateBpm',
+      'avgCadenceSpm',
+      'maxCadenceSpm',
+      'elevationGainM',
+      'elevationLossM',
+      'avgStrideLengthCm',
+      'normalizedPowerW'
+    ],
+    getHealth: async () => ({ status: 'ok', modelVersion: 'running-v1' }),
+    runPrediction: async () => ({
+      predictedTrainingLoadLevel: 'medium',
+      fatigueRisk: 'medium',
+      recoveryAdvice: 'keep recovery balanced',
+      confidence: 0.82,
+      modelVersion: 'running-v1'
+    })
+  };
+
+  return createApp({ healthService, activityService, mlService });
 }
 
 test('GET /api/health returns service and database status', async () => {
@@ -49,14 +78,52 @@ test('GET /api/activities validates limit', async () => {
   const response = await request(buildApp()).get('/api/activities?limit=999');
 
   assert.equal(response.status, 400);
-  assert.match(response.body.message, /limit/);
+  assert.equal(response.body.error.code, 'INVALID_QUERY');
+  assert.match(response.body.error.message, /limit/);
+});
+
+test('GET /api/activities passes filters and sort options', async () => {
+  let captured;
+  const app = buildApp({
+    activityService: {
+      listActivities: async (filters) => {
+        captured = filters;
+        return [];
+      },
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async () => ({}),
+      getTimelineStats: async () => []
+    }
+  });
+
+  const response = await request(app).get(
+    '/api/activities?activity_type=running&start_date=2026-06-01&end_date=2026-06-09&sort_by=distance_m&sort_order=asc&limit=20&offset=5'
+  );
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(captured, {
+    activityType: 'running',
+    startDate: '2026-06-01',
+    endDate: '2026-06-09',
+    limit: 20,
+    offset: 5,
+    sortBy: 'distance_m',
+    sortOrder: 'asc'
+  });
 });
 
 test('GET /api/activities/:id returns 404 for missing activity', async () => {
   const response = await request(buildApp()).get('/api/activities/999');
 
   assert.equal(response.status, 404);
-  assert.equal(response.body.message, 'activity not found');
+  assert.equal(response.body.error.message, 'activity not found');
 });
 
 test('GET /api/activities/:id/track-points uses default paging', async () => {
@@ -74,7 +141,9 @@ test('GET /api/activities/:id/track-points uses default paging', async () => {
       getSpeedSeries: async () => [],
       getLaps: async () => [],
       getZones: async () => [],
-      getActivityTypeStats: async () => []
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async () => ({}),
+      getTimelineStats: async () => []
     }
   });
 
@@ -91,5 +160,111 @@ test('GET /api/activities/:id/track-points returns 404 for missing activity', as
   const response = await request(buildApp()).get('/api/activities/999/track-points');
 
   assert.equal(response.status, 404);
-  assert.equal(response.body.message, 'activity not found');
+  assert.equal(response.body.error.message, 'activity not found');
+});
+
+test('GET /api/stats/summary passes date filters', async () => {
+  let captured;
+  const app = buildApp({
+    activityService: {
+      listActivities: async () => [],
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async (filters) => {
+        captured = filters;
+        return { activityCount: 2 };
+      },
+      getTimelineStats: async () => []
+    }
+  });
+
+  const response = await request(app).get('/api/stats/summary?start_date=2026-06-01&end_date=2026-06-09');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(captured, {
+    activityType: undefined,
+    startDate: '2026-06-01',
+    endDate: '2026-06-09'
+  });
+});
+
+test('GET /api/stats/timeline validates group_by', async () => {
+  const response = await request(buildApp()).get('/api/stats/timeline?group_by=year');
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error.code, 'INVALID_QUERY');
+});
+
+test('GET /api/ml/health returns model status', async () => {
+  const response = await request(buildApp()).get('/api/ml/health');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.status, 'ok');
+  assert.equal(response.body.modelVersion, 'running-v1');
+});
+
+test('POST /api/ml/running-prediction validates missing feature', async () => {
+  const response = await request(buildApp()).post('/api/ml/running-prediction').send({ distanceM: 5000 });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error.code, 'INVALID_ML_INPUT');
+});
+
+test('POST /api/ml/running-prediction returns running analysis result', async () => {
+  const payload = {
+    distanceM: 5000,
+    durationS: 1800,
+    movingDurationS: 1780,
+    elapsedDurationS: 1850,
+    avgSpeedMps: 2.8,
+    maxSpeedMps: 4.5,
+    avgHeartRateBpm: 150,
+    maxHeartRateBpm: 175,
+    avgCadenceSpm: 165,
+    maxCadenceSpm: 190,
+    elevationGainM: 30,
+    elevationLossM: 30,
+    avgStrideLengthCm: 100,
+    normalizedPowerW: 220
+  };
+
+  const response = await request(buildApp()).post('/api/ml/running-prediction').send(payload);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.predictedTrainingLoadLevel, 'medium');
+  assert.equal(response.body.fatigueRisk, 'medium');
+  assert.equal(response.body.modelVersion, 'running-v1');
+});
+
+test('POST /api/ml/running-prediction allows local API origin', async () => {
+  const payload = {
+    distanceM: 5000,
+    durationS: 1800,
+    movingDurationS: 1780,
+    elapsedDurationS: 1850,
+    avgSpeedMps: 2.8,
+    maxSpeedMps: 4.5,
+    avgHeartRateBpm: 150,
+    maxHeartRateBpm: 175,
+    avgCadenceSpm: 165,
+    maxCadenceSpm: 190,
+    elevationGainM: 30,
+    elevationLossM: 30,
+    avgStrideLengthCm: 100,
+    normalizedPowerW: 220
+  };
+
+  const response = await request(buildApp())
+    .post('/api/ml/running-prediction')
+    .set('Origin', 'http://127.0.0.1:8080')
+    .send(payload);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.predictedTrainingLoadLevel, 'medium');
 });

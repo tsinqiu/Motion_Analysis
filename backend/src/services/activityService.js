@@ -1,6 +1,13 @@
 const db = require('../db');
 
-async function listActivities({ activityType, limit, offset }) {
+const SORT_COLUMNS = {
+  local_start_time: 'a.local_start_time',
+  distance_m: 'js.distance_m',
+  duration_s: 'js.duration_s',
+  activity_training_load: 'js.activity_training_load'
+};
+
+function buildActivityFilters({ activityType, startDate, endDate } = {}) {
   const where = [];
   const params = [];
 
@@ -8,6 +15,27 @@ async function listActivities({ activityType, limit, offset }) {
     where.push('a.activity_type = ?');
     params.push(activityType);
   }
+
+  if (startDate) {
+    where.push('a.local_start_time >= ?');
+    params.push(`${startDate} 00:00:00.000`);
+  }
+
+  if (endDate) {
+    where.push('a.local_start_time <= ?');
+    params.push(`${endDate} 23:59:59.999`);
+  }
+
+  return {
+    clause: where.length ? `WHERE ${where.join(' AND ')}` : '',
+    params
+  };
+}
+
+async function listActivities({ activityType, startDate, endDate, limit, offset, sortBy, sortOrder }) {
+  const filters = buildActivityFilters({ activityType, startDate, endDate });
+  const sortColumn = SORT_COLUMNS[sortBy] || SORT_COLUMNS.local_start_time;
+  const direction = sortOrder === 'asc' ? 'ASC' : 'DESC';
 
   const sql = `
     SELECT
@@ -30,12 +58,12 @@ async function listActivities({ activityType, limit, offset }) {
     FROM Activities a
     LEFT JOIN Sessions s ON s.activity_id = a.id
     LEFT JOIN ActivitySummaries js ON js.activity_id = a.id
-    ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-    ORDER BY a.local_start_time DESC
+    ${filters.clause}
+    ORDER BY ${sortColumn} ${direction}, a.id DESC
     LIMIT ? OFFSET ?
   `;
 
-  return db.query(sql, [...params, limit, offset]);
+  return db.query(sql, [...filters.params, limit, offset]);
 }
 
 async function getActivityById(activityId) {
@@ -118,7 +146,7 @@ async function getTrackPoints(activityId, { limit, offset }) {
   );
 }
 
-async function getHeartRateSeries(activityId) {
+async function getHeartRateSeries(activityId, { limit, offset }) {
   return db.query(
     `
       SELECT
@@ -129,12 +157,13 @@ async function getHeartRateSeries(activityId) {
         AND sample_time_utc IS NOT NULL
         AND heart_rate_bpm IS NOT NULL
       ORDER BY sample_index
+      LIMIT ? OFFSET ?
     `,
-    [activityId]
+    [activityId, limit, offset]
   );
 }
 
-async function getSpeedSeries(activityId) {
+async function getSpeedSeries(activityId, { limit, offset }) {
   return db.query(
     `
       SELECT
@@ -145,8 +174,9 @@ async function getSpeedSeries(activityId) {
         AND sample_time_utc IS NOT NULL
         AND speed_mps IS NOT NULL
       ORDER BY sample_index
+      LIMIT ? OFFSET ?
     `,
-    [activityId]
+    [activityId, limit, offset]
   );
 }
 
@@ -186,8 +216,11 @@ async function getZones(activityId) {
   );
 }
 
-async function getActivityTypeStats() {
-  return db.query(`
+async function getActivityTypeStats(filters) {
+  const activityFilters = buildActivityFilters(filters);
+
+  return db.query(
+    `
     SELECT
       a.activity_type AS activityType,
       COUNT(*) AS activityCount,
@@ -198,9 +231,62 @@ async function getActivityTypeStats() {
       ROUND(SUM(js.activity_training_load), 1) AS totalTrainingLoad
     FROM Activities a
     LEFT JOIN ActivitySummaries js ON js.activity_id = a.id
+    ${activityFilters.clause}
     GROUP BY a.activity_type
     ORDER BY activityCount DESC
-  `);
+  `,
+    activityFilters.params
+  );
+}
+
+async function getSummaryStats(filters) {
+  const activityFilters = buildActivityFilters(filters);
+
+  const rows = await db.query(
+    `
+      SELECT
+        COUNT(*) AS activityCount,
+        ROUND(SUM(js.distance_m) / 1000, 2) AS totalDistanceKm,
+        ROUND(SUM(js.duration_s) / 60, 1) AS totalDurationMin,
+        ROUND(SUM(js.moving_duration_s) / 60, 1) AS totalMovingMin,
+        ROUND(AVG(js.avg_heart_rate_bpm), 1) AS avgHeartRateBpm,
+        MAX(js.max_heart_rate_bpm) AS maxHeartRateBpm,
+        ROUND(AVG(js.avg_speed_mps), 2) AS avgSpeedMps,
+        ROUND(SUM(js.activity_training_load), 1) AS totalTrainingLoad
+      FROM Activities a
+      LEFT JOIN ActivitySummaries js ON js.activity_id = a.id
+      ${activityFilters.clause}
+    `,
+    activityFilters.params
+  );
+
+  return rows[0];
+}
+
+async function getTimelineStats({ groupBy, ...filters }) {
+  const activityFilters = buildActivityFilters(filters);
+  const periodExpression =
+    groupBy === 'month'
+      ? "DATE_FORMAT(a.local_start_time, '%Y-%m')"
+      : "DATE_FORMAT(a.local_start_time, '%Y-%m-%d')";
+
+  return db.query(
+    `
+      SELECT
+        ${periodExpression} AS period,
+        COUNT(*) AS activityCount,
+        ROUND(SUM(js.distance_m) / 1000, 2) AS totalDistanceKm,
+        ROUND(SUM(js.duration_s) / 60, 1) AS totalDurationMin,
+        ROUND(SUM(js.activity_training_load), 1) AS totalTrainingLoad,
+        ROUND(AVG(js.avg_heart_rate_bpm), 1) AS avgHeartRateBpm
+      FROM Activities a
+      LEFT JOIN ActivitySummaries js ON js.activity_id = a.id
+      ${activityFilters.clause}
+      GROUP BY period
+      ORDER BY period ASC
+    `,
+    activityFilters.params
+  );
 }
 
 module.exports = {
@@ -212,5 +298,7 @@ module.exports = {
   getSpeedSeries,
   getLaps,
   getZones,
-  getActivityTypeStats
+  getActivityTypeStats,
+  getSummaryStats,
+  getTimelineStats
 };

@@ -1,0 +1,31 @@
+{
+  "modelVersion": "running-v1",
+  "featureNames": [
+    "distanceM",
+    "durationS",
+    "movingDurationS",
+    "elapsedDurationS",
+    "avgSpeedMps",
+    "maxSpeedMps",
+    "avgHeartRateBpm",
+    "maxHeartRateBpm",
+    "avgCadenceSpm",
+    "maxCadenceSpm",
+    "elevationGainM",
+    "elevationLossM",
+    "avgStrideLengthCm",
+    "normalizedPowerW"
+  ],
+  "classes": [
+    "high",
+    "low",
+    "medium"
+  ],
+  "thresholds": {
+    "lowMax": 60.51334126790361,
+    "mediumMax": 172.90258280436183
+  },
+  "sampleCount": 98,
+  "trainAccuracy": 0.9743589743589743,
+  "testAccuracy": 0.9
+}

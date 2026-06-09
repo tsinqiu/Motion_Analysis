@@ -8,21 +8,36 @@ function parseInteger(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function parseCorsOrigins(value) {
+function parseCorsOrigins(value, serverPort) {
+  const localApiOrigins = [`http://127.0.0.1:${serverPort}`, `http://localhost:${serverPort}`];
+
   if (!value) {
-    return ['http://localhost:5173'];
+    return ['http://localhost:5173', ...localApiOrigins];
   }
 
-  return value
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  return [
+    ...value
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    ...localApiOrigins
+  ];
 }
+
+function resolveBackendPath(value, fallback) {
+  const target = value || fallback;
+  if (path.isAbsolute(target)) {
+    return target;
+  }
+  return path.resolve(__dirname, '..', target);
+}
+
+const serverPort = parseInteger(process.env.PORT, 8080);
 
 const config = {
   server: {
     host: process.env.HOST || '127.0.0.1',
-    port: parseInteger(process.env.PORT, 8080)
+    port: serverPort
   },
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
@@ -37,7 +52,15 @@ const config = {
     dateStrings: true
   },
   cors: {
-    origins: parseCorsOrigins(process.env.CORS_ORIGIN)
+    origins: [...new Set(parseCorsOrigins(process.env.CORS_ORIGIN, serverPort))]
+  },
+  ml: {
+    pythonPath: process.env.ML_PYTHON_PATH || 'python',
+    scriptPath:
+      resolveBackendPath(process.env.ML_PREDICT_SCRIPT, 'ml/predict_running.py'),
+    modelPath:
+      resolveBackendPath(process.env.ML_MODEL_PATH, 'ml/models/running_model.joblib'),
+    timeoutMs: parseInteger(process.env.ML_TIMEOUT_MS, 10000)
   }
 };
 
