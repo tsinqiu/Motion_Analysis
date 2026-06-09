@@ -44,6 +44,26 @@ http://localhost:8080/api
 
 后端只读取数据库，不负责导入 Garmin 文件，也不修改数据库表结构。
 
+如果数据库是在二期鉴权/手动上传功能之前创建的，需要先执行：
+
+```text
+database/sql/04_auth_manual_upload.sql
+```
+
+然后初始化管理员账号并把已有 Garmin 数据归属给管理员：
+
+```powershell
+npm run seed:admin
+```
+
+管理员账号默认来自 `.env`：
+
+```text
+ADMIN_USERNAME
+ADMIN_EMAIL
+ADMIN_PASSWORD
+```
+
 ## 接口
 
 接口说明见：
@@ -55,6 +75,9 @@ backend/docs/api.md
 当前接口包括：
 
 - `GET /api/health`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
 - `GET /api/activities`
 - `GET /api/activities/:id`
 - `GET /api/activities/:id/track-points`
@@ -65,10 +88,28 @@ backend/docs/api.md
 - `GET /api/stats/summary`
 - `GET /api/stats/activity-types`
 - `GET /api/stats/timeline`
+- `GET /api/stats/heart-rate-zones`
+- `GET /api/stats/personal-bests`
+- `POST /api/manual-activities`
+- `GET /api/manual-activities/:id`
+- `PUT /api/manual-activities/:id`
+- `DELETE /api/manual-activities/:id`
 - `GET /api/ml/health`
 - `POST /api/ml/running-prediction`
 
-活动列表和统计接口支持 `start_date`、`end_date`、`activity_type` 等查询参数，日期格式为 `YYYY-MM-DD`。活动列表还支持 `limit`、`offset`、`sort_by` 和 `sort_order`。
+活动列表和统计接口支持 `start_date`、`end_date`、`activity_type`、`keyword`、`source`、`owner` 等查询参数，日期格式为 `YYYY-MM-DD`。活动列表支持 `page`、`page_size`、`limit`、`offset`、`sort_by` 和 `sort_order`。
+
+## 注册登录和手动上传
+
+开放注册默认创建普通用户。所有写数据接口都需要：
+
+```text
+Authorization: Bearer <token>
+```
+
+手动上传首版只保存活动摘要数据，不保存逐秒轨迹点。上传成功后不会自动调用模型预测，前端可以单独提供“预测”按钮调用 `POST /api/ml/running-prediction`。
+
+现有 Garmin 导入数据归管理员所有；普通用户只能修改或删除自己手动上传的数据。
 
 ## Running 模型拓展
 

@@ -16,6 +16,21 @@ async function query(sql, params = []) {
   return rows;
 }
 
+async function transaction(handler) {
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await handler(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function ping() {
   const rows = await query('SELECT 1 AS ok');
   return rows[0]?.ok === 1;
@@ -31,6 +46,7 @@ async function closePool() {
 module.exports = {
   getPool,
   query,
+  transaction,
   ping,
   closePool
 };

@@ -2,12 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const config = require('./config');
 const { ApiError } = require('./errors');
+const createAuthRouter = require('./routes/authRoutes');
 const createHealthRouter = require('./routes/healthRoutes');
 const createActivityRouter = require('./routes/activityRoutes');
 const createStatsRouter = require('./routes/statsRoutes');
 const createMlRouter = require('./routes/mlRoutes');
+const createManualActivityRouter = require('./routes/manualActivityRoutes');
 
-function createApp({ healthService, activityService, mlService } = {}) {
+function createApp({ healthService, activityService, mlService, authService, manualActivityService } = {}) {
   const app = express();
 
   app.use(
@@ -24,9 +26,11 @@ function createApp({ healthService, activityService, mlService } = {}) {
   );
   app.use(express.json());
 
+  app.use('/api', createAuthRouter(authService));
   app.use('/api', createHealthRouter(healthService));
-  app.use('/api', createActivityRouter(activityService));
-  app.use('/api', createStatsRouter(activityService));
+  app.use('/api', createActivityRouter(activityService, authService));
+  app.use('/api', createStatsRouter(activityService, authService));
+  app.use('/api', createManualActivityRouter({ manualActivityService, authService }));
   app.use('/api', createMlRouter(mlService));
 
   app.use('/api', (req, res) => {

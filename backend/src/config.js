@@ -54,6 +54,15 @@ const config = {
   cors: {
     origins: [...new Set(parseCorsOrigins(process.env.CORS_ORIGIN, serverPort))]
   },
+  auth: {
+    jwtSecret: process.env.JWT_SECRET || 'dev_only_change_me',
+    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    admin: {
+      username: process.env.ADMIN_USERNAME || 'admin',
+      email: process.env.ADMIN_EMAIL || 'admin@example.com',
+      password: process.env.ADMIN_PASSWORD || 'admin123456'
+    }
+  },
   ml: {
     pythonPath: process.env.ML_PYTHON_PATH || 'python',
     scriptPath:

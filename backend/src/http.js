@@ -40,6 +40,19 @@ function parseOffset(value) {
   return parsed;
 }
 
+function parsePage(value) {
+  if (value === undefined) {
+    return 1;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1 || String(parsed) !== String(value)) {
+    throw new ApiError(400, 'page must be a positive integer', 'INVALID_QUERY');
+  }
+
+  return parsed;
+}
+
 function parseDate(value, name) {
   if (value === undefined) {
     return undefined;
@@ -85,6 +98,7 @@ module.exports = {
   parsePositiveId,
   parseLimit,
   parseOffset,
+  parsePage,
   parseDate,
   parseEnum,
   parseDateRange

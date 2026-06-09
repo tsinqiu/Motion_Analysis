@@ -49,8 +49,52 @@ function buildApp(overrides = {}) {
     })
   };
 
-  return createApp({ healthService, activityService, mlService });
+  const authService = overrides.authService || {
+    register: async ({ username, email }) => ({ user: { id: 2, username, email, role: 'user' }, token: 'registered-token' }),
+    login: async ({ email }) => ({ user: { id: 2, username: 'tester', email, role: 'user' }, token: 'login-token' }),
+    verifyToken: async (token) => {
+      if (token === 'valid-user-token') {
+        return { id: 2, username: 'tester', email: 'tester@example.com', role: 'user', status: 'active' };
+      }
+      if (token === 'valid-admin-token') {
+        return { id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', status: 'active' };
+      }
+      const error = new Error('invalid token');
+      error.statusCode = 401;
+      error.code = 'INVALID_TOKEN';
+      throw error;
+    }
+  };
+
+  const manualActivityService = overrides.manualActivityService || {
+    createManualActivity: async () => ({ id: 10, activityType: 'running', isManual: true }),
+    getManualActivity: async () => ({ id: 10, activityType: 'running', isManual: true }),
+    updateManualActivity: async () => ({ id: 10, activityType: 'running', isManual: true }),
+    deleteManualActivity: async () => ({ deleted: true, id: 10 })
+  };
+
+  return createApp({ healthService, activityService, mlService, authService, manualActivityService });
 }
+
+const manualPayload = {
+  activityType: 'running',
+  activityName: 'Manual Test Run',
+  localStartTime: '2026-06-09 08:00:00',
+  distanceM: 5000,
+  durationS: 1800,
+  movingDurationS: 1780,
+  elapsedDurationS: 1850,
+  avgSpeedMps: 2.8,
+  maxSpeedMps: 4.5,
+  avgHeartRateBpm: 150,
+  maxHeartRateBpm: 175,
+  avgCadenceSpm: 165,
+  maxCadenceSpm: 190,
+  elevationGainM: 30,
+  elevationLossM: 30,
+  avgStrideLengthCm: 100,
+  normalizedPowerW: 220
+};
 
 test('GET /api/health returns service and database status', async () => {
   const response = await request(buildApp()).get('/api/health');
@@ -112,8 +156,14 @@ test('GET /api/activities passes filters and sort options', async () => {
     activityType: 'running',
     startDate: '2026-06-01',
     endDate: '2026-06-09',
+    keyword: undefined,
+    source: undefined,
+    owner: 'all',
+    ownerUserId: undefined,
     limit: 20,
     offset: 5,
+    page: 1,
+    pageSize: 20,
     sortBy: 'distance_m',
     sortOrder: 'asc'
   });
@@ -190,7 +240,11 @@ test('GET /api/stats/summary passes date filters', async () => {
   assert.deepEqual(captured, {
     activityType: undefined,
     startDate: '2026-06-01',
-    endDate: '2026-06-09'
+    endDate: '2026-06-09',
+    keyword: undefined,
+    source: undefined,
+    owner: 'all',
+    ownerUserId: undefined
   });
 });
 
@@ -267,4 +321,103 @@ test('POST /api/ml/running-prediction allows local API origin', async () => {
 
   assert.equal(response.status, 200);
   assert.equal(response.body.predictedTrainingLoadLevel, 'medium');
+});
+
+test('POST /api/auth/register returns user and token', async () => {
+  const response = await request(buildApp())
+    .post('/api/auth/register')
+    .send({ username: 'tester', email: 'tester@example.com', password: 'password123' });
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.token, 'registered-token');
+  assert.equal(response.body.user.email, 'tester@example.com');
+});
+
+test('GET /api/auth/me requires token', async () => {
+  const response = await request(buildApp()).get('/api/auth/me');
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.error.code, 'AUTH_REQUIRED');
+});
+
+test('GET /api/activities owner=mine requires login', async () => {
+  const response = await request(buildApp()).get('/api/activities?owner=mine');
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.error.code, 'AUTH_REQUIRED');
+});
+
+test('GET /api/activities owner=mine passes user id', async () => {
+  let captured;
+  const app = buildApp({
+    activityService: {
+      listActivities: async (filters) => {
+        captured = filters;
+        return { items: [], page: 1, pageSize: 50, total: 0, totalPages: 0 };
+      },
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async () => ({}),
+      getTimelineStats: async () => [],
+      getHeartRateZones: async () => [],
+      getPersonalBests: async () => ({})
+    }
+  });
+
+  const response = await request(app)
+    .get('/api/activities?owner=mine&keyword=Manual')
+    .set('Authorization', 'Bearer valid-user-token');
+
+  assert.equal(response.status, 200);
+  assert.equal(captured.owner, 'mine');
+  assert.equal(captured.ownerUserId, 2);
+  assert.equal(captured.keyword, 'Manual');
+});
+
+test('POST /api/manual-activities requires login', async () => {
+  const response = await request(buildApp()).post('/api/manual-activities').send(manualPayload);
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.error.code, 'AUTH_REQUIRED');
+});
+
+test('POST /api/manual-activities creates manual activity without running ML prediction', async () => {
+  let capturedPayload;
+  let predictionCalled = false;
+  const app = buildApp({
+    manualActivityService: {
+      createManualActivity: async (payload, user) => {
+        capturedPayload = { payload, user };
+        return { id: 99, activityType: payload.activityType, isManual: true };
+      },
+      getManualActivity: async () => ({}),
+      updateManualActivity: async () => ({}),
+      deleteManualActivity: async () => ({})
+    },
+    mlService: {
+      FEATURE_NAMES: [],
+      getHealth: async () => ({}),
+      runPrediction: async () => {
+        predictionCalled = true;
+        return {};
+      }
+    }
+  });
+
+  const response = await request(app)
+    .post('/api/manual-activities')
+    .set('Authorization', 'Bearer valid-user-token')
+    .send(manualPayload);
+
+  assert.equal(response.status, 201);
+  assert.equal(response.body.id, 99);
+  assert.equal(capturedPayload.user.id, 2);
+  assert.equal(capturedPayload.payload.activityType, 'running');
+  assert.equal(predictionCalled, false);
 });

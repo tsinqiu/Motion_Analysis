@@ -80,6 +80,18 @@ source database/sql/02_import_data.sql;
 source database/sql/03_queries.sql;
 ```
 
+如果是在已有数据库上启用后端二期的注册登录、用户归属和手动上传功能，再执行一次：
+
+```sql
+source database/sql/04_auth_manual_upload.sql;
+```
+
+然后在 `backend` 目录运行：
+
+```powershell
+npm run seed:admin
+```
+
 ## 数据库名
 
 当前 SQL 使用的数据库名为：

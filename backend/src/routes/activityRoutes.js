@@ -1,19 +1,43 @@
 const express = require('express');
 const defaultActivityService = require('../services/activityService');
+const defaultAuthService = require('../services/authService');
 const { ApiError } = require('../errors');
+const { optionalAuthenticate } = require('../middleware/authMiddleware');
 const {
   asyncHandler,
   parseDateRange,
   parseEnum,
   parseLimit,
   parseOffset,
+  parsePage,
   parsePositiveId
 } = require('../http');
 
-const ACTIVITY_SORT_FIELDS = ['local_start_time', 'distance_m', 'duration_s', 'activity_training_load'];
+const ACTIVITY_SORT_FIELDS = [
+  'local_start_time',
+  'distance_m',
+  'duration_s',
+  'avg_heart_rate_bpm',
+  'max_heart_rate_bpm',
+  'avg_pace',
+  'activity_training_load'
+];
 const SORT_ORDERS = ['asc', 'desc'];
+const OWNER_FILTERS = ['all', 'admin', 'mine'];
+const SOURCE_FILTERS = ['garmin_import', 'manual_upload'];
 
-function createActivityRouter(activityService = defaultActivityService) {
+function keyword(value) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const text = String(value).trim();
+  if (text.length > 100) {
+    throw new ApiError(400, 'keyword must be at most 100 characters', 'INVALID_QUERY');
+  }
+  return text || undefined;
+}
+
+function createActivityRouter(activityService = defaultActivityService, authService = defaultAuthService) {
   const router = express.Router();
 
   async function requireActivity(activityId) {
@@ -25,18 +49,35 @@ function createActivityRouter(activityService = defaultActivityService) {
 
   router.get(
     '/activities',
+    optionalAuthenticate(authService),
     asyncHandler(async (req, res) => {
-      const limit = parseLimit(req.query.limit, 50, 200);
-      const offset = parseOffset(req.query.offset);
+      const pageSize = parseLimit(req.query.page_size ?? req.query.limit, 50, 200);
+      const page = req.query.page === undefined && req.query.offset !== undefined
+        ? Math.floor(parseOffset(req.query.offset) / pageSize) + 1
+        : parsePage(req.query.page);
+      const offset = req.query.offset !== undefined ? parseOffset(req.query.offset) : (page - 1) * pageSize;
       const { startDate, endDate } = parseDateRange(req.query);
       const sortBy = parseEnum(req.query.sort_by, ACTIVITY_SORT_FIELDS, 'sort_by', 'local_start_time');
       const sortOrder = parseEnum(req.query.sort_order, SORT_ORDERS, 'sort_order', 'desc');
+      const owner = parseEnum(req.query.owner, OWNER_FILTERS, 'owner', 'all');
+      const source = parseEnum(req.query.source, SOURCE_FILTERS, 'source', undefined);
+
+      if (owner === 'mine' && !req.user) {
+        throw new ApiError(401, 'login is required to filter your activities', 'AUTH_REQUIRED');
+      }
+
       const activities = await activityService.listActivities({
         activityType: req.query.activity_type,
         startDate,
         endDate,
-        limit,
+        keyword: keyword(req.query.keyword),
+        source,
+        owner,
+        ownerUserId: req.user?.id,
+        limit: pageSize,
         offset,
+        page,
+        pageSize,
         sortBy,
         sortOrder
       });
