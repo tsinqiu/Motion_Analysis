@@ -34,6 +34,18 @@ http://127.0.0.1:8080
 http://localhost:8080/api
 ```
 
+生产部署时，后端只监听服务器本机地址：
+
+```text
+http://127.0.0.1:8080
+```
+
+由 Nginx 对公网提供页面和 `/api` 反向代理。部署说明见：
+
+```text
+backend/docs/deployment.md
+```
+
 ## 本地数据库
 
 如果本地还没有 `MotionAnalysis` 数据库，先在项目根目录的 `database` 目录中导入现有 SQL：
@@ -78,6 +90,12 @@ database/sql/05_performance_indexes.sql
 
 ```text
 backend/docs/api.md
+```
+
+前端对接说明见：
+
+```text
+backend/docs/frontend-integration.md
 ```
 
 当前接口包括：

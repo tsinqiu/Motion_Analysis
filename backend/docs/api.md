@@ -1,5 +1,11 @@
 # Backend API
 
+Frontend integration notes:
+
+```text
+backend/docs/frontend-integration.md
+```
+
 Base URL for local frontend development:
 
 ```text
