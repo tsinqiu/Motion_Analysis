@@ -76,15 +76,42 @@ VITE_USE_MOCK=false
 
 可以参考 `.env.production.example`。不要把真实服务器账号、数据库账号、私钥或个人邮箱写入环境文件。
 
-## 预留 API
+## 后端 dev API 对接
 
-- `GET /activities`
+后端 `dev` 分支当前约定本地地址为 `http://localhost:8080/api`，成功响应统一为：
+
+```json
+{
+  "data": {},
+  "meta": {}
+}
+```
+
+前端 `src/services` 会解包 `data/meta`，并把后端 camelCase 字段转换为页面组件使用的字段，不在组件里直接处理数据库连接或 MySQL 细节。
+
+当前已接入或预留的主要接口：
+
+- `GET /activities?page=1&page_size=50`
 - `GET /activities/:id`
-- `GET /activities/:id/track-points`
-- `GET /activities/:id/heart-rate`
-- `GET /activities/:id/speed`
+- `GET /activities/:id/track-points?limit=1000&offset=0`
+- `GET /activities/:id/heart-rate?limit=2000&offset=0`
+- `GET /activities/:id/speed?limit=2000&offset=0`
 - `GET /activities/:id/laps`
+- `GET /activities/:id/zones`
+- `GET /dashboard/overview`
+- `GET /stats/summary`
 - `GET /stats/activity-types`
+- `GET /stats/timeline`
+- `GET /stats/metric-trend`
+- `GET /stats/calendar`
+- `GET /stats/heart-rate-zones`
+- `GET /stats/personal-bests`
+- `GET /training/load-balance`
+- `POST /auth/login`
+- `POST /manual-activities`
+- `POST /ml/running-prediction`
+
+鉴权、手动上传和模型预测接口已经在服务层预留，当前页面仍以活动管理、详情和统计展示为主。
 
 ## 移动端效果说明
 
@@ -113,7 +140,7 @@ GET http://服务器公网IP/api/stats/activity-types
 
 Nginx 示例配置在 `deploy/nginx.motion-analysis.example.conf`。其中 `location /` 使用 `try_files $uri $uri/ /index.html;`，用于支持 Vue Router history 模式，避免刷新 `/activities` 或 `/analytics` 时出现 404。
 
-后端 Express 建议统一保留 `/api` 前缀，例如：
+后端 Express 默认监听服务器本机 `127.0.0.1:8080`，并建议统一保留 `/api` 前缀，例如：
 
 ```text
 GET /api/activities
@@ -122,6 +149,7 @@ GET /api/activities/:id/track-points
 GET /api/activities/:id/heart-rate
 GET /api/activities/:id/speed
 GET /api/activities/:id/laps
+GET /api/dashboard/overview
 GET /api/stats/activity-types
 ```
 
