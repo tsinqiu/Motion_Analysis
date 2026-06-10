@@ -118,13 +118,41 @@ Example body:
 GET /api/stats/summary
 GET /api/stats/activity-types
 GET /api/stats/timeline?group_by=month
+GET /api/stats/metric-trend?metric=avg_heart_rate_bpm&range=6m
+GET /api/stats/calendar?month=2026-06
 GET /api/stats/heart-rate-zones
 GET /api/stats/personal-bests
 ```
 
 Stats endpoints support the same filters as activities where relevant: `activity_type`, `start_date`, `end_date`, `keyword`, `source`, and `owner`.
 
-Summary includes total count, total distance, total duration, average pace, average heart rate, longest distance, fastest pace, and total training load.
+`GET /api/stats/summary` also supports:
+
+- `range=month&date=2026-06`
+- `range=year&date=2026`
+- `range=all`
+
+Summary includes total count, total distance, total duration, total calories, average pace, average heart rate, average speed, longest distance, fastest pace, total training load, and `byActivityType`.
+
+`GET /api/stats/metric-trend` supports:
+
+```text
+avg_cadence_spm
+avg_heart_rate_bpm
+max_heart_rate_bpm
+avg_speed_mps
+avg_pace_sec_per_km
+distance_m
+duration_s
+calories
+activity_training_load
+vo2max
+body_battery_delta
+```
+
+Trend ranges are `3m`, `6m`, and `1y`. Unsupported metrics return `400 UNSUPPORTED_METRIC`.
+
+`GET /api/stats/calendar` returns one entry for each day in the requested month, including activity count, activity types, totals, and activity summaries.
 
 Stats endpoints are cached in memory. Cache keys include route, query parameters, and user identity. Manual activity create/update/delete clears this cache. The default TTL is configured by:
 
@@ -142,7 +170,45 @@ Zone 4: 阈值
 Zone 5: 高强度
 ```
 
-Personal bests currently focus on running: longest distance, fastest 5km pace, fastest 10km pace, highest training load, and highest average heart rate.
+Personal bests are grouped into `running`, `cycling`, and `overall`. Items are omitted when current data is insufficient.
+
+## Training
+
+```text
+GET /api/training/load-balance?range=3m&end_date=2026-06-10
+```
+
+`range` supports `3m`, `6m`, and `1y`. The endpoint returns daily training load plus CTL, ATL, and TSB values calculated from existing training load data. Each point includes the activities for that day.
+
+Example response:
+
+```json
+{
+  "data": [
+    {
+      "date": "2026-06-01",
+      "dailyTrainingLoad": 120,
+      "ctl": 82.34,
+      "atl": 101.2,
+      "tsb": -18.86,
+      "activities": []
+    }
+  ],
+  "meta": {
+    "cache": {
+      "hit": false
+    }
+  }
+}
+```
+
+## Dashboard
+
+```text
+GET /api/dashboard/overview
+```
+
+Returns recent activities, monthly summary, yearly summary, recent training load, and personal best summaries for the first screen.
 
 ## ML Running Prediction
 

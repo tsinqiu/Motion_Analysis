@@ -152,6 +152,42 @@ function parseOptionalNumber(value, name, { min = 0, max = Number.MAX_SAFE_INTEG
   return numeric;
 }
 
+function parseYearMonth(value, name = 'month') {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const text = String(value);
+  if (!/^\d{4}-\d{2}$/.test(text)) {
+    throw new ApiError(400, `${name} must use YYYY-MM format`, 'INVALID_QUERY');
+  }
+
+  const parsed = new Date(`${text}-01T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 7) !== text) {
+    throw new ApiError(400, `${name} must be a valid month`, 'INVALID_QUERY');
+  }
+
+  return text;
+}
+
+function parseYear(value, name = 'year') {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const text = String(value);
+  if (!/^\d{4}$/.test(text)) {
+    throw new ApiError(400, `${name} must use YYYY format`, 'INVALID_QUERY');
+  }
+
+  const year = Number.parseInt(text, 10);
+  if (year < 1900 || year > 2100) {
+    throw new ApiError(400, `${name} must be from 1900 to 2100`, 'INVALID_QUERY');
+  }
+
+  return text;
+}
+
 module.exports = {
   asyncHandler,
   parsePositiveId,
@@ -165,5 +201,7 @@ module.exports = {
   parseKeyword,
   parseActivityType,
   parseSort,
-  parseOptionalNumber
+  parseOptionalNumber,
+  parseYearMonth,
+  parseYear
 };

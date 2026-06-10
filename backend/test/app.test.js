@@ -21,8 +21,12 @@ function buildApp(overrides = {}) {
     getActivityTypeStats: async () => [{ activityType: 'running', activityCount: 1 }],
     getSummaryStats: async () => ({ activityCount: 1, totalDistanceKm: 5 }),
     getTimelineStats: async () => [{ period: '2026-06-01', activityCount: 1 }],
+    getMetricTrend: async () => [{ date: '2026-06-01', value: 150, sampleCount: 1, activities: [] }],
+    getCalendarStats: async () => ({ month: '2026-06', days: [] }),
     getHeartRateZones: async () => [{ zone: 'Zone 1', label: '轻松' }],
-    getPersonalBests: async () => ({ activityType: 'running' })
+    getLoadBalance: async () => [{ date: '2026-06-01', dailyTrainingLoad: 100, ctl: 20, atl: 50, tsb: -30, activities: [] }],
+    getPersonalBests: async () => ({ running: [], cycling: [], overall: [] }),
+    getDashboardOverview: async () => ({ recentActivities: [], monthlySummary: {}, yearlySummary: {}, trainingLoad: [], personalBests: {} })
   };
 
   const mlService = overrides.mlService || {
@@ -232,12 +236,16 @@ test('GET /api/stats/summary passes date filters', async () => {
       getSpeedSeries: async () => [],
       getLaps: async () => [],
       getZones: async () => [],
-      getActivityTypeStats: async () => [],
-      getSummaryStats: async (filters) => {
-        captured = filters;
-        return { activityCount: 2 };
-      },
-      getTimelineStats: async () => []
+    getActivityTypeStats: async () => [],
+    getSummaryStats: async (filters) => {
+      captured = filters;
+      return { activityCount: 2 };
+    },
+      getTimelineStats: async () => [],
+      getMetricTrend: async () => [],
+      getCalendarStats: async () => ({ month: '2026-06', days: [] }),
+      getLoadBalance: async () => [],
+      getDashboardOverview: async () => ({})
     }
   });
 
@@ -256,11 +264,167 @@ test('GET /api/stats/summary passes date filters', async () => {
   });
 });
 
+test('GET /api/stats/summary passes range filters', async () => {
+  statsCache.clear();
+  let captured;
+  const app = buildApp({
+    activityService: {
+      listActivities: async () => [],
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async (filters) => {
+        captured = filters;
+        return { activityCount: 3 };
+      },
+      getTimelineStats: async () => [],
+      getMetricTrend: async () => [],
+      getCalendarStats: async () => ({ month: '2026-06', days: [] }),
+      getHeartRateZones: async () => [],
+      getLoadBalance: async () => [],
+      getPersonalBests: async () => ({ running: [], cycling: [], overall: [] }),
+      getDashboardOverview: async () => ({})
+    }
+  });
+
+  const response = await request(app).get('/api/stats/summary?range=month&date=2026-06');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body.data, { activityCount: 3 });
+  assert.equal(captured.range, 'month');
+  assert.equal(captured.date, '2026-06');
+  statsCache.clear();
+});
+
 test('GET /api/stats/timeline validates group_by', async () => {
   const response = await request(buildApp()).get('/api/stats/timeline?group_by=year');
 
   assert.equal(response.status, 400);
   assert.equal(response.body.error.code, 'INVALID_QUERY');
+});
+
+test('GET /api/stats/metric-trend returns trend points', async () => {
+  statsCache.clear();
+  let captured;
+  const app = buildApp({
+    activityService: {
+      ...buildApp().locals?.activityService,
+      listActivities: async () => ({ items: [], page: 1, pageSize: 50, total: 0, totalPages: 0 }),
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async () => ({}),
+      getTimelineStats: async () => [],
+      getMetricTrend: async (filters) => {
+        captured = filters;
+        return [{ date: '2026-06-01', value: 150, sampleCount: 1, activities: [] }];
+      },
+      getCalendarStats: async () => ({ month: '2026-06', days: [] }),
+      getHeartRateZones: async () => [],
+      getLoadBalance: async () => [],
+      getPersonalBests: async () => ({ running: [], cycling: [], overall: [] }),
+      getDashboardOverview: async () => ({})
+    }
+  });
+
+  const response = await request(app).get(
+    '/api/stats/metric-trend?metric=avg_heart_rate_bpm&range=6m&end_date=2026-06-10'
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data[0].value, 150);
+  assert.equal(captured.metric, 'avg_heart_rate_bpm');
+  assert.equal(captured.range, '6m');
+  assert.equal(captured.endDate, '2026-06-10');
+  statsCache.clear();
+});
+
+test('GET /api/stats/metric-trend rejects unsupported metric', async () => {
+  const response = await request(buildApp()).get('/api/stats/metric-trend?metric=left_right_balance');
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error.code, 'UNSUPPORTED_METRIC');
+});
+
+test('GET /api/stats/calendar returns month calendar data', async () => {
+  statsCache.clear();
+  const response = await request(buildApp()).get('/api/stats/calendar?month=2026-06');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.month, '2026-06');
+  assert.deepEqual(response.body.data.days, []);
+  statsCache.clear();
+});
+
+test('GET /api/stats/calendar requires valid month', async () => {
+  const response = await request(buildApp()).get('/api/stats/calendar?month=2026');
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error.code, 'INVALID_QUERY');
+});
+
+test('GET /api/training/load-balance returns training series', async () => {
+  statsCache.clear();
+  let captured;
+  const app = buildApp({
+    activityService: {
+      listActivities: async () => ({ items: [], page: 1, pageSize: 50, total: 0, totalPages: 0 }),
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async () => ({}),
+      getTimelineStats: async () => [],
+      getMetricTrend: async () => [],
+      getCalendarStats: async () => ({ month: '2026-06', days: [] }),
+      getHeartRateZones: async () => [],
+      getLoadBalance: async (filters) => {
+        captured = filters;
+        return [{ date: '2026-06-01', dailyTrainingLoad: 100, ctl: 20, atl: 50, tsb: -30, activities: [] }];
+      },
+      getPersonalBests: async () => ({ running: [], cycling: [], overall: [] }),
+      getDashboardOverview: async () => ({})
+    }
+  });
+
+  const response = await request(app).get('/api/training/load-balance?range=1y&end_date=2026-06-10');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data[0].tsb, -30);
+  assert.equal(captured.range, '1y');
+  assert.equal(captured.endDate, '2026-06-10');
+  statsCache.clear();
+});
+
+test('GET /api/training/load-balance validates range', async () => {
+  const response = await request(buildApp()).get('/api/training/load-balance?range=2y');
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error.code, 'INVALID_QUERY');
+});
+
+test('GET /api/dashboard/overview returns aggregated dashboard data', async () => {
+  statsCache.clear();
+  const response = await request(buildApp()).get('/api/dashboard/overview');
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body.data.recentActivities, []);
+  assert.deepEqual(response.body.data.trainingLoad, []);
+  statsCache.clear();
 });
 
 test('GET /api/ml/health returns model status', async () => {

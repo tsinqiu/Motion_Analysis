@@ -96,8 +96,12 @@ backend/docs/api.md
 - `GET /api/stats/summary`
 - `GET /api/stats/activity-types`
 - `GET /api/stats/timeline`
+- `GET /api/stats/metric-trend`
+- `GET /api/stats/calendar`
 - `GET /api/stats/heart-rate-zones`
 - `GET /api/stats/personal-bests`
+- `GET /api/training/load-balance`
+- `GET /api/dashboard/overview`
 - `POST /api/manual-activities`
 - `GET /api/manual-activities/:id`
 - `PUT /api/manual-activities/:id`
@@ -106,6 +110,8 @@ backend/docs/api.md
 - `POST /api/ml/running-prediction`
 
 活动列表和统计接口支持 `start_date`、`end_date`、`activity_type`、`keyword`、`source`、`owner` 等查询参数，日期格式为 `YYYY-MM-DD`。活动列表支持 `page`、`page_size`、`limit`、`offset`、`sort_by` 和 `sort_order`。
+
+四期新增的运动分析接口支持训练负荷平衡、趋势、运动日历、分组统计、PB 和首页聚合。后端只返回当前数据库中已有或可可靠计算的数据；没有数据来源的模块不返回对应内容。
 
 成功响应统一使用：
 

@@ -6,6 +6,8 @@ const createAuthRouter = require('./routes/authRoutes');
 const createHealthRouter = require('./routes/healthRoutes');
 const createActivityRouter = require('./routes/activityRoutes');
 const createStatsRouter = require('./routes/statsRoutes');
+const createTrainingRouter = require('./routes/trainingRoutes');
+const createDashboardRouter = require('./routes/dashboardRoutes');
 const createMlRouter = require('./routes/mlRoutes');
 const createManualActivityRouter = require('./routes/manualActivityRoutes');
 
@@ -30,6 +32,8 @@ function createApp({ healthService, activityService, mlService, authService, man
   app.use('/api', createHealthRouter(healthService));
   app.use('/api', createActivityRouter(activityService, authService));
   app.use('/api', createStatsRouter(activityService, authService));
+  app.use('/api', createTrainingRouter(activityService, authService));
+  app.use('/api', createDashboardRouter(activityService, authService));
   app.use('/api', createManualActivityRouter({ manualActivityService, authService }));
   app.use('/api', createMlRouter(mlService));
 

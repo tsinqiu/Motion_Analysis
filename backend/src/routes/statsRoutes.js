@@ -2,12 +2,35 @@ const express = require('express');
 const defaultActivityService = require('../services/activityService');
 const defaultAuthService = require('../services/authService');
 const { ApiError } = require('../errors');
-const { asyncHandler, parseActivityType, parseDateRange, parseEnum, parseKeyword } = require('../http');
+const {
+  asyncHandler,
+  parseActivityType,
+  parseDateRange,
+  parseEnum,
+  parseKeyword,
+  parseYear,
+  parseYearMonth
+} = require('../http');
 const { optionalAuthenticate } = require('../middleware/authMiddleware');
 const statsCache = require('../cache/statsCache');
 const { sendData } = require('../response');
 
 const TIMELINE_GROUPS = ['day', 'month'];
+const SUMMARY_RANGES = ['month', 'year', 'all'];
+const TREND_RANGES = ['3m', '6m', '1y'];
+const TREND_METRICS = [
+  'avg_cadence_spm',
+  'avg_heart_rate_bpm',
+  'max_heart_rate_bpm',
+  'avg_speed_mps',
+  'avg_pace_sec_per_km',
+  'distance_m',
+  'duration_s',
+  'calories',
+  'activity_training_load',
+  'vo2max',
+  'body_battery_delta'
+];
 const OWNER_FILTERS = ['all', 'admin', 'mine'];
 const SOURCE_FILTERS = ['garmin_import', 'manual_upload'];
 
@@ -26,6 +49,47 @@ function parseStatsFilters(query, user) {
     source: parseEnum(query.source, SOURCE_FILTERS, 'source', undefined),
     owner,
     ownerUserId: user?.id
+  };
+}
+
+function parseSummaryFilters(query, user) {
+  const filters = parseStatsFilters(query, user);
+  const range = parseEnum(query.range, SUMMARY_RANGES, 'range', undefined);
+  let date;
+
+  if (range === 'month') {
+    date = parseYearMonth(query.date, 'date');
+  } else if (range === 'year') {
+    date = parseYear(query.date, 'date');
+  } else if (query.date !== undefined && range !== 'all') {
+    throw new ApiError(400, 'date requires range=month or range=year', 'INVALID_QUERY');
+  }
+
+  const result = { ...filters };
+  if (range !== undefined) {
+    result.range = range;
+  }
+  if (date !== undefined) {
+    result.date = date;
+  }
+  return result;
+}
+
+function parseTrendFilters(query, user) {
+  const filters = parseStatsFilters(query, user);
+  const metric = query.metric;
+  if (!metric) {
+    throw new ApiError(400, 'metric is required', 'INVALID_QUERY');
+  }
+  if (!TREND_METRICS.includes(metric)) {
+    throw new ApiError(400, 'metric is not supported', 'UNSUPPORTED_METRIC');
+  }
+
+  return {
+    ...filters,
+    metric,
+    range: parseEnum(query.range, TREND_RANGES, 'range', '3m'),
+    endDate: parseDateRange({ end_date: query.end_date }).endDate
   };
 }
 
@@ -60,7 +124,35 @@ function createStatsRouter(activityService = defaultActivityService, authService
     maybeAuth,
     asyncHandler(async (req, res) => {
       await sendCachedStats(req, res, () =>
-        activityService.getSummaryStats(parseStatsFilters(req.query, req.user))
+        activityService.getSummaryStats(parseSummaryFilters(req.query, req.user))
+      );
+    })
+  );
+
+  router.get(
+    '/stats/metric-trend',
+    maybeAuth,
+    asyncHandler(async (req, res) => {
+      await sendCachedStats(req, res, () =>
+        activityService.getMetricTrend(parseTrendFilters(req.query, req.user))
+      );
+    })
+  );
+
+  router.get(
+    '/stats/calendar',
+    maybeAuth,
+    asyncHandler(async (req, res) => {
+      const month = parseYearMonth(req.query.month, 'month');
+      if (!month) {
+        throw new ApiError(400, 'month is required', 'INVALID_QUERY');
+      }
+
+      await sendCachedStats(req, res, () =>
+        activityService.getCalendarStats({
+          ...parseStatsFilters(req.query, req.user),
+          month
+        })
       );
     })
   );
