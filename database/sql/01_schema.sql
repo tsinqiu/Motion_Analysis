@@ -15,8 +15,22 @@ DROP TABLE IF EXISTS Laps;
 DROP TABLE IF EXISTS Sessions;
 DROP TABLE IF EXISTS ActivitySourceFiles;
 DROP TABLE IF EXISTS Activities;
+DROP TABLE IF EXISTS Users;
 DROP TABLE IF EXISTS SourceFiles;
 SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE Users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(80) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'user') NOT NULL DEFAULT 'user',
+    status ENUM('active', 'disabled') NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_Users_email UNIQUE (email),
+    CONSTRAINT UQ_Users_username UNIQUE (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE SourceFiles (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -44,10 +58,17 @@ CREATE TABLE Activities (
     start_longitude DOUBLE NULL,
     end_latitude DOUBLE NULL,
     end_longitude DOUBLE NULL,
+    owner_user_id INT NULL,
+    data_source VARCHAR(40) NOT NULL DEFAULT 'garmin_import',
+    is_manual BOOLEAN NOT NULL DEFAULT FALSE,
     match_status VARCHAR(40) NOT NULL DEFAULT 'imported' COMMENT 'matched_fit_json / fit_only / json_only 等。',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     raw_json JSON NULL,
     CONSTRAINT UQ_Activities_activity_key UNIQUE (activity_key),
-    CONSTRAINT UQ_Activities_garmin_activity_id UNIQUE (garmin_activity_id)
+    CONSTRAINT UQ_Activities_garmin_activity_id UNIQUE (garmin_activity_id),
+    CONSTRAINT FK_Activities_owner_user
+        FOREIGN KEY (owner_user_id) REFERENCES Users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE ActivitySourceFiles (
@@ -233,6 +254,7 @@ CREATE TABLE FitMessages (
 
 CREATE INDEX IX_Activities_type_start ON Activities(activity_type, start_time_utc);
 CREATE INDEX IX_Activities_local_start ON Activities(local_start_time);
+CREATE INDEX IX_Activities_owner_source ON Activities(owner_user_id, data_source);
 CREATE INDEX IX_ActivitySourceFiles_source_role ON ActivitySourceFiles(source_role);
 CREATE INDEX IX_Sessions_activity ON Sessions(activity_id);
 CREATE INDEX IX_ActivitySummaries_load ON ActivitySummaries(activity_training_load);

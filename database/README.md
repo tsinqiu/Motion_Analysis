@@ -20,6 +20,8 @@ database/
     01_schema.sql
     02_import_data.sql
     03_queries.sql
+    04_auth_manual_upload.sql
+    05_performance_indexes.sql
 ```
 
 ## 数据源说明
@@ -79,6 +81,26 @@ source database/sql/01_schema.sql;
 source database/sql/02_import_data.sql;
 source database/sql/03_queries.sql;
 ```
+
+如果是在已有数据库上启用后端二期的注册登录、用户归属和手动上传功能，再执行一次：
+
+```sql
+source database/sql/04_auth_manual_upload.sql;
+```
+
+然后在 `backend` 目录运行：
+
+```powershell
+npm run seed:admin
+```
+
+三期后端优化需要补充常用查询索引，再执行：
+
+```sql
+source database/sql/05_performance_indexes.sql;
+```
+
+`05_performance_indexes.sql` 会给活动来源、用户归属、运动类型、开始时间，以及摘要表中的距离、时长、心率、速度、训练负荷等常用查询字段补索引。脚本可重复执行，不会因为索引已存在而失败。
 
 ## 数据库名
 
