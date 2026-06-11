@@ -138,7 +138,7 @@ GET http://服务器公网IP/api/activities/1001
 GET http://服务器公网IP/api/stats/activity-types
 ```
 
-Nginx 示例配置在 `deploy/nginx.motion-analysis.example.conf`。其中 `location /` 使用 `try_files $uri $uri/ /index.html;`，用于支持 Vue Router history 模式，避免刷新 `/activities` 或 `/analytics` 时出现 404。
+Nginx 示例配置在 `backend/docs/nginx-motion-analysis.conf`。其中 `location /` 使用 `try_files $uri $uri/ /index.html;`，用于支持 Vue Router history 模式，避免刷新 `/activities` 或 `/analytics` 时出现 404。
 
 后端 Express 默认监听服务器本机 `127.0.0.1:8080`，并建议统一保留 `/api` 前缀，例如：
 

@@ -1,0 +1,174 @@
+# Deployment Guide
+
+This guide describes the first production deployment shape:
+
+```text
+User browser
+  -> http://SERVER_PUBLIC_IP
+  -> Nginx :80
+       /        -> Vue dist files
+       /api/... -> Node Express on 127.0.0.1:8080
+                    -> MySQL on 127.0.0.1:3306
+```
+
+## Server Layout
+
+Recommended paths:
+
+```text
+/var/www/motion-analysis/
+  backend/
+  frontend/dist/
+```
+
+The Node API should bind to `127.0.0.1:8080`. Do not expose port `8080` to the public internet.
+
+## Backend Environment
+
+Copy the production example and fill in real secrets:
+
+```bash
+cd /var/www/motion-analysis/backend
+cp .env.production.example .env
+```
+
+Use these deployment defaults:
+
+```text
+HOST=127.0.0.1
+PORT=8080
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=MotionAnalysis
+DB_USER=motion_api
+CORS_ORIGIN=http://SERVER_PUBLIC_IP
+```
+
+Use a long random `JWT_SECRET`. Do not commit `.env`.
+
+## MySQL
+
+Create a dedicated API user instead of using `root`:
+
+```sql
+CREATE USER IF NOT EXISTS 'motion_api'@'127.0.0.1' IDENTIFIED BY 'REPLACE_WITH_STRONG_PASSWORD';
+GRANT SELECT, INSERT, UPDATE, DELETE ON MotionAnalysis.* TO 'motion_api'@'127.0.0.1';
+FLUSH PRIVILEGES;
+```
+
+Import the database scripts in this order:
+
+```sql
+source database/sql/01_schema.sql;
+source database/sql/02_import_data.sql;
+source database/sql/04_auth_manual_upload.sql;
+source database/sql/05_performance_indexes.sql;
+```
+
+Then seed the admin user:
+
+```bash
+cd /var/www/motion-analysis/backend
+npm run seed:admin
+```
+
+Keep MySQL bound to localhost or blocked by firewall. Do not expose port `3306` publicly.
+
+## Node Process
+
+Install production dependencies:
+
+```bash
+cd /var/www/motion-analysis/backend
+npm ci --omit=dev
+```
+
+Install PM2 globally if the server does not already have it:
+
+```bash
+npm install -g pm2
+```
+
+Start and persist the API process:
+
+```bash
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup
+```
+
+Useful commands:
+
+```bash
+pm2 status
+pm2 logs motion-analysis-api
+pm2 restart motion-analysis-api
+pm2 stop motion-analysis-api
+```
+
+## Frontend Build
+
+For production, the frontend should use:
+
+```text
+VITE_API_BASE_URL=/api
+```
+
+After the frontend is built, copy the generated `dist` directory to:
+
+```text
+/var/www/motion-analysis/frontend/dist
+```
+
+## Nginx
+
+Use `backend/docs/nginx-motion-analysis.conf` as the base Nginx site config.
+
+Example setup:
+
+```bash
+sudo cp backend/docs/nginx-motion-analysis.conf /etc/nginx/sites-available/motion-analysis
+sudo ln -s /etc/nginx/sites-available/motion-analysis /etc/nginx/sites-enabled/motion-analysis
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+If the server has a domain or HTTPS later, update `server_name`, SSL config, and `CORS_ORIGIN`.
+
+## Verification
+
+Test Node locally on the server:
+
+```bash
+curl http://127.0.0.1:8080/api/health
+```
+
+Expected result:
+
+```text
+data.status = ok
+data.database.ok = true
+```
+
+Test Nginx proxy:
+
+```bash
+curl http://SERVER_PUBLIC_IP/api/health
+```
+
+Open the frontend:
+
+```text
+http://SERVER_PUBLIC_IP
+```
+
+Vue route refresh should not return 404, because Nginx uses `try_files ... /index.html`.
+
+## Security Checklist
+
+- Public internet only needs port `80` for this first deployment.
+- Do not expose Node port `8080`.
+- Do not expose MySQL port `3306`.
+- Do not commit `.env`.
+- Use a dedicated MySQL user, not `root`.
+- Use a strong `JWT_SECRET` and admin password.
