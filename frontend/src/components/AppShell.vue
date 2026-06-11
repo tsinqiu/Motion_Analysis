@@ -54,6 +54,7 @@ const navItems = [
   { to: '/', label: '首页概览', icon: '01' },
   { to: '/activities', label: '活动列表', icon: '02' },
   { to: '/analytics', label: '统计分析', icon: '03' },
-  { to: '/mobile-preview', label: '移动端效果', icon: '04' },
+  { to: '/schema', label: '数据库结构', icon: '04' },
+  { to: '/mobile-preview', label: '移动端效果', icon: '05' },
 ]
 </script>

@@ -28,6 +28,7 @@
         </div>
         <div class="hero-actions">
           <RouterLink class="primary-link" to="/activities">查看活动</RouterLink>
+          <RouterLink class="secondary-link inverse" to="/schema">数据库结构</RouterLink>
           <RouterLink class="secondary-link inverse" to="/mobile-preview">移动端效果</RouterLink>
         </div>
       </section>

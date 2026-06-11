@@ -19,6 +19,7 @@
 - 活动列表：展示 `Activities` + `Sessions` 的列表数据。
 - 运动详情：展示单次活动摘要、心率曲线、速度曲线、轨迹点和分段。
 - 统计分析：展示运动类型占比和聚合统计。
+- 数据库结构：按 dev 分支 `database/sql/01_schema.sql` 展示表、字段、关系和索引口径。
 - 移动端效果：复现暗色 Garmin 风格的活动列表、训练负荷、趋势、统计、今日状态和运动日历交互。
 
 ## 本地运行
@@ -160,6 +161,7 @@ GET /api/stats/activity-types
 ```text
 http://服务器公网IP/
 http://服务器公网IP/activities
+http://服务器公网IP/schema
 http://服务器公网IP/api/activities
 ```
 

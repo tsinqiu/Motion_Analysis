@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Activities from '@/views/Activities.vue'
 import ActivityDetail from '@/views/ActivityDetail.vue'
 import Analytics from '@/views/Analytics.vue'
+import DatabaseSchema from '@/views/DatabaseSchema.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import MobilePreview from '@/views/MobilePreview.vue'
 
@@ -30,6 +31,12 @@ const routes = [
     name: 'analytics',
     component: Analytics,
     meta: { title: '统计分析' },
+  },
+  {
+    path: '/schema',
+    name: 'schema',
+    component: DatabaseSchema,
+    meta: { title: '数据库结构' },
   },
   {
     path: '/mobile-preview',
