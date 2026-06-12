@@ -48,7 +48,7 @@ import { computed } from 'vue'
 import ChartPanel from '@/components/ChartPanel.vue'
 import StateBlock from '@/components/StateBlock.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { getActivityTypeStats } from '@/services/activities'
+import { getActivityTypeStats } from '@/services/stats'
 import { formatDistance } from '@/utils/formatters'
 
 const { data, error, load, loading } = useAsyncData(getActivityTypeStats)

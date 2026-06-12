@@ -32,7 +32,7 @@ import { CloudUpload, ChevronRight } from '@lucide/vue'
 
 import StateBlock from '@/components/StateBlock.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
-import { getPersonalBests } from '@/services/activities'
+import { getPersonalBests } from '@/services/stats'
 
 const router = useRouter()
 const { data, error, load, loading } = useAsyncData(getPersonalBests, {})
@@ -58,7 +58,7 @@ const RecordGroup = {
       h('div', { class: 'section-heading' }, [
         h('div', [h('p', { class: 'overline' }, 'Record group'), h('h2', props.title)]),
       ]),
-      h('div', { class: 'record-list' }, props.items.map((item) =>
+      h('div', { class: 'record-list' }, (props.items?.length ? props.items : [{ key: 'empty', label: '暂无真实记录', value: '--', unit: '' }]).map((item) =>
         h('button', {
           type: 'button',
           disabled: !item.activityId,

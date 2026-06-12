@@ -6,69 +6,215 @@
           <p class="overline">Data sync center</p>
           <h2>同步</h2>
         </div>
-        <span class="status-chip neutral">本地模拟</span>
+        <span class="status-chip" :class="isMockMode ? 'neutral' : 'good'">{{ isMockMode ? 'Mock mode' : '真实接口' }}</span>
       </div>
-      <p class="muted-copy">第三方平台授权不在本轮后端接口范围内；当前页面用于展示连接状态、同步方向、进度与错误日志。</p>
+      <p class="muted-copy">同步中心读取服务器 SyncProviderConnections、SyncJobs 与 SyncLogs；第三方 adapter 未配置时只展示真实不可用状态。</p>
+      <p v-if="notice" class="success-copy">{{ notice }}</p>
     </section>
 
-    <div class="provider-grid">
-      <article v-for="provider in providers" :key="provider.name" class="dark-panel provider-card">
-        <div class="provider-head">
-          <strong>{{ provider.name }}</strong>
-          <span>{{ provider.status }}</span>
-        </div>
-        <div class="provider-meta">
-          <span><small>方向</small><b>{{ provider.direction }}</b></span>
-          <span><small>数量</small><b>{{ provider.count }}</b></span>
-          <span><small>最近同步</small><b>{{ provider.lastSync }}</b></span>
-          <span><small>自动同步</small><b>{{ provider.auto ? '开启' : '关闭' }}</b></span>
-        </div>
-        <div class="sync-progress"><span :style="{ width: syncing === provider.name ? '76%' : provider.count ? '100%' : '0%' }"></span></div>
-        <button class="primary-link" type="button" :disabled="syncing === provider.name" @click="sync(provider)">
-          <RefreshCw :size="16" />
-          {{ syncing === provider.name ? '同步中' : '立即同步' }}
-        </button>
-      </article>
-    </div>
+    <StateBlock
+      v-if="loading"
+      title="正在加载同步状态"
+      message="正在读取同步平台、任务和日志。"
+    />
+    <StateBlock
+      v-else-if="error"
+      title="同步状态加载失败"
+      :message="error"
+      action-label="重试"
+      tone="danger"
+      @action="load"
+    />
 
-    <section class="dark-panel">
-      <div class="section-heading">
-        <div>
-          <p class="overline">Sync logs</p>
-          <h2>同步日志</h2>
+    <template v-else>
+      <div class="provider-grid">
+        <article v-for="provider in providers" :key="provider.provider" class="dark-panel provider-card">
+          <div class="provider-head">
+            <strong>{{ provider.name }}</strong>
+            <span>{{ providerStatusLabel(provider.status) }}</span>
+          </div>
+          <p v-if="provider.adapterStatus === 'not_configured'" class="muted-copy">后端未配置 {{ provider.name }} 授权 adapter。</p>
+          <div class="provider-meta">
+            <span><small>方向</small><b>{{ directionLabel(provider.syncDirection) }}</b></span>
+            <span><small>自动同步</small><b>{{ provider.autoSync ? '开启' : '关闭' }}</b></span>
+            <span><small>最近同步</small><b>{{ formatDateTime(provider.lastSyncAt) }}</b></span>
+            <span><small>Adapter</small><b>{{ adapterLabel(provider.adapterStatus) }}</b></span>
+          </div>
+          <div class="sync-progress"><span :style="{ width: provider.status === 'connected' ? '100%' : '12%' }"></span></div>
+          <div class="provider-controls">
+            <label class="toggle-row compact-toggle">
+              <span>自动</span>
+              <input
+                :checked="provider.autoSync"
+                type="checkbox"
+                @change="saveProviderSettings(provider, { autoSync: $event.target.checked })"
+              />
+            </label>
+            <select :value="provider.syncDirection" @change="saveProviderSettings(provider, { syncDirection: $event.target.value })">
+              <option value="import">导入</option>
+              <option value="export">导出</option>
+              <option value="two_way">双向</option>
+            </select>
+          </div>
+          <div class="provider-actions">
+            <button class="secondary-link" type="button" :disabled="busy" @click="authorize(provider)">
+              <LinkIcon :size="16" />
+              授权
+            </button>
+            <button class="primary-link" type="button" :disabled="busy || provider.adapterStatus === 'not_configured'" @click="runSync(provider)">
+              <RefreshCw :size="16" />
+              同步
+            </button>
+            <button class="danger-link" type="button" :disabled="busy" @click="disconnect(provider)">
+              断开
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <section class="dark-panel">
+        <div class="section-heading">
+          <div>
+            <p class="overline">Sync jobs</p>
+            <h2>同步任务</h2>
+          </div>
         </div>
-      </div>
-      <div class="log-list">
-        <span v-for="log in logs" :key="log">{{ log }}</span>
-      </div>
-    </section>
+        <StateBlock v-if="jobs.items.length === 0" title="暂无同步任务" message="服务器当前没有 SyncJobs 记录。" />
+        <div v-else class="log-list">
+          <span v-for="job in jobs.items" :key="job.id">{{ job.provider }} · {{ job.jobType }} · {{ job.status }} · {{ formatDateTime(job.createdAt) }}</span>
+        </div>
+      </section>
+
+      <section class="dark-panel">
+        <div class="section-heading">
+          <div>
+            <p class="overline">Sync logs</p>
+            <h2>同步日志</h2>
+          </div>
+        </div>
+        <StateBlock v-if="logs.items.length === 0" title="暂无同步日志" message="服务器当前没有 SyncLogs 记录。" />
+        <div v-else class="log-list">
+          <span v-for="log in logs.items" :key="log.id">{{ log.provider }} · {{ log.level }} · {{ log.message }}</span>
+        </div>
+      </section>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, ref } from 'vue'
-import { RefreshCw } from '@lucide/vue'
+import { onMounted, ref } from 'vue'
+import { Link as LinkIcon, RefreshCw } from '@lucide/vue'
 
-import { syncProviders } from '@/mock/garsync'
+import StateBlock from '@/components/StateBlock.vue'
+import { useMockData } from '@/services/api'
+import {
+  authorizeProvider,
+  createSyncJob,
+  disconnectProvider,
+  getSyncJobs,
+  getSyncLogs,
+  getSyncProviders,
+  updateProviderSettings,
+} from '@/services/sync'
 
-const providers = ref(syncProviders.map((provider) => ({ ...provider })))
-const syncing = ref('')
-const logs = ref(['Garmin Connect 同步完成：导入 138 条活动记录。'])
-let timeoutId = null
+const isMockMode = useMockData()
+const providers = ref([])
+const jobs = ref({ items: [] })
+const logs = ref({ items: [] })
+const error = ref('')
+const notice = ref('')
+const loading = ref(false)
+const busy = ref(false)
 
-function sync(provider) {
-  window.clearTimeout(timeoutId)
-  syncing.value = provider.name
-  logs.value.unshift(`${provider.name} 开始同步，执行去重与增量检查。`)
-  timeoutId = window.setTimeout(() => {
-    provider.status = provider.status === '待授权' ? '需要重新授权' : '已连接'
-    provider.lastSync = '2026-06-11 12:31'
-    provider.count += provider.status === '已连接' ? 1 : 0
-    logs.value.unshift(`${provider.name} 同步结束：${provider.status}。`)
-    syncing.value = ''
-    timeoutId = null
-  }, 900)
+function providerStatusLabel(status) {
+  return {
+    connected: '已连接',
+    not_connected: '未连接',
+    needs_auth: '需要授权',
+    error: '异常',
+  }[status] || status || '--'
 }
 
-onBeforeUnmount(() => window.clearTimeout(timeoutId))
+function adapterLabel(status) {
+  return status === 'configured' ? '可用' : status === 'not_configured' ? '未配置' : status || '--'
+}
+
+function directionLabel(value) {
+  return { import: '导入', export: '导出', two_way: '双向' }[value] || value || '--'
+}
+
+function formatDateTime(value) {
+  if (!value) return '--'
+  return String(value).replace('T', ' ').slice(0, 19)
+}
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const [nextProviders, nextJobs, nextLogs] = await Promise.all([
+      getSyncProviders(),
+      getSyncJobs({ page: 1, page_size: 10 }),
+      getSyncLogs({ page: 1, page_size: 12 }),
+    ])
+    providers.value = nextProviders
+    jobs.value = nextJobs
+    logs.value = nextLogs
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '同步状态加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function withProviderAction(action, successMessage) {
+  busy.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    await action()
+    notice.value = successMessage
+    await load()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '同步操作失败'
+  } finally {
+    busy.value = false
+  }
+}
+
+function saveProviderSettings(provider, patch) {
+  return withProviderAction(
+    () => updateProviderSettings(provider.provider, {
+      autoSync: patch.autoSync ?? provider.autoSync,
+      syncDirection: patch.syncDirection ?? provider.syncDirection,
+    }),
+    `${provider.name} 设置已保存。`,
+  )
+}
+
+function authorize(provider) {
+  return withProviderAction(async () => {
+    const result = await authorizeProvider(provider.provider)
+    if (result?.authorizationUrl) {
+      window.location.href = result.authorizationUrl
+    }
+  }, provider.adapterStatus === 'not_configured' ? `${provider.name} 后端授权 adapter 未配置。` : `${provider.name} 授权已发起。`)
+}
+
+function runSync(provider) {
+  return withProviderAction(
+    () => createSyncJob({ provider: provider.provider, jobType: 'manual_sync' }),
+    `${provider.name} 同步任务已提交。`,
+  )
+}
+
+function disconnect(provider) {
+  return withProviderAction(
+    () => disconnectProvider(provider.provider),
+    `${provider.name} 已断开。`,
+  )
+}
+
+onMounted(load)
 </script>

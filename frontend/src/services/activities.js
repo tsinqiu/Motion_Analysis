@@ -132,7 +132,7 @@ function getMockActivities() {
   return [...manualActivities, ...seedActivities].map(normalizeActivity)
 }
 
-function normalizeActivity(row = {}) {
+export function normalizeActivity(row = {}) {
   const rawType = firstDefined(row.raw_activity_type, row.activity_type, row.activityType, row.sportType)
   const distanceM = firstDefined(
     row.total_distance_m,
@@ -159,7 +159,7 @@ function normalizeActivity(row = {}) {
   return {
     ...row,
     id: toNumber(row.id),
-    activity_key: firstDefined(row.activity_key, row.garminActivityId, row.activityName, `ACT-${row.id || 'unknown'}`),
+    activity_key: firstDefined(row.activity_key, row.activityKey, row.garminActivityId, row.activityName, `ACT-${row.id || 'unknown'}`),
     activity_name: firstDefined(row.activity_name, row.activityName, displayActivityType(rawType)),
     activity_type: displayActivityType(rawType),
     raw_activity_type: rawType,
@@ -188,7 +188,7 @@ function normalizeActivity(row = {}) {
   }
 }
 
-function normalizeTrackPoint(row = {}) {
+export function normalizeTrackPoint(row = {}) {
   return {
     ...row,
     sample_index: firstDefined(row.sample_index, row.sampleIndex),
@@ -204,7 +204,7 @@ function normalizeTrackPoint(row = {}) {
   }
 }
 
-function normalizeLap(row = {}) {
+export function normalizeLap(row = {}) {
   return {
     ...row,
     lap_index: firstDefined(row.lap_index, row.lapIndex),
@@ -217,21 +217,21 @@ function normalizeLap(row = {}) {
   }
 }
 
-function normalizeActivityTypeStat(row = {}) {
+export function normalizeActivityTypeStat(row = {}) {
   return {
     ...row,
     activity_type: displayActivityType(firstDefined(row.activity_type, row.activityType)),
     raw_activity_type: firstDefined(row.raw_activity_type, row.activity_type, row.activityType),
     activity_count: toNumber(firstDefined(row.activity_count, row.activityCount)),
-    total_distance_m: toNumber(firstDefined(row.total_distance_m, kmToMeters(row.totalDistanceKm))),
-    total_timer_time_s: toNumber(firstDefined(row.total_timer_time_s, minutesToSeconds(row.totalDurationMin))),
+    total_distance_m: toNumber(firstDefined(row.total_distance_m, row.totalDistanceM, kmToMeters(row.totalDistanceKm))),
+    total_timer_time_s: toNumber(firstDefined(row.total_timer_time_s, row.totalDurationS, minutesToSeconds(row.totalDurationMin))),
     avg_heart_rate_bpm: toNumber(firstDefined(row.avg_heart_rate_bpm, row.avgHeartRateBpm)),
     total_training_load: toNumber(firstDefined(row.total_training_load, row.totalTrainingLoad)),
     percentage: toNumber(row.percentage),
   }
 }
 
-function normalizeDashboardOverview(row = {}) {
+export function normalizeDashboardOverview(row = {}) {
   return {
     ...row,
     recentActivities: (row.recentActivities || []).map(normalizeActivity),
@@ -601,18 +601,12 @@ export async function getActivityPage(params = {}) {
     }
   }
 
-  const rows = await getActivityPool(query)
-  const page = Number(query.page || 1)
-  const pageSize = Number(query.page_size || query.pageSize || 50)
-  const start = (page - 1) * pageSize
+  const envelope = await requestEnvelope('/activities', [], normalizeActivity, {
+    params: cleanParams(query),
+  })
   return {
-    data: rows.slice(start, start + pageSize),
-    meta: {
-      page,
-      pageSize,
-      total: rows.length,
-      totalPages: Math.max(1, Math.ceil(rows.length / pageSize)),
-    },
+    data: envelope.data || [],
+    meta: envelope.meta || {},
   }
 }
 
@@ -622,8 +616,7 @@ export async function getActivities(params = {}) {
 }
 
 export async function getActivity(id) {
-  const demoActivity = getDemoActivity(id)
-  if (useMockData() || demoActivity) {
+  if (useMockData()) {
     const manualOrSeed = getMockActivities().find((activity) => activity.id === Number(id))
     if (manualOrSeed) return manualOrSeed
     const seed = findActivity(id)
@@ -635,7 +628,7 @@ export async function getActivity(id) {
 }
 
 export async function getTrackPoints(id, params = {}) {
-  if (getDemoActivity(id)) return trackPoints.map(normalizeTrackPoint)
+  if (useMockData()) return trackPoints.map(normalizeTrackPoint)
 
   const envelope = await requestEnvelope(`/activities/${id}/track-points`, trackPoints, normalizeTrackPoint, {
     params: { limit: 1000, offset: 0, ...params },
@@ -651,7 +644,7 @@ export async function getHeartRateSeries(id, params = {}) {
       heart_rate_bpm: point.heart_rate_bpm,
     }))
 
-  if (getDemoActivity(id)) return series.map(normalizeTrackPoint)
+  if (useMockData()) return series.map(normalizeTrackPoint)
 
   const envelope = await requestEnvelope(`/activities/${id}/heart-rate`, series, normalizeTrackPoint, {
     params: { limit: 2000, offset: 0, ...params },
@@ -667,7 +660,7 @@ export async function getSpeedSeries(id, params = {}) {
       speed_mps: point.speed_mps,
     }))
 
-  if (getDemoActivity(id)) return series.map(normalizeTrackPoint)
+  if (useMockData()) return series.map(normalizeTrackPoint)
 
   const envelope = await requestEnvelope(`/activities/${id}/speed`, series, normalizeTrackPoint, {
     params: { limit: 2000, offset: 0, ...params },
@@ -676,14 +669,14 @@ export async function getSpeedSeries(id, params = {}) {
 }
 
 export async function getLaps(id) {
-  if (getDemoActivity(id)) return laps.map(normalizeLap)
+  if (useMockData()) return laps.map(normalizeLap)
 
   const envelope = await requestEnvelope(`/activities/${id}/laps`, laps, normalizeLap)
   return envelope.data || []
 }
 
 export async function getActivityZones(id) {
-  if (getDemoActivity(id)) return []
+  if (useMockData()) return []
 
   const envelope = await requestEnvelope(`/activities/${id}/zones`, [], (zone) => zone)
   return envelope.data || []

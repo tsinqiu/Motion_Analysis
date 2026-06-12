@@ -28,13 +28,21 @@
       </section>
 
       <div class="today-layout">
-        <section class="dark-panel weather-panel">
+        <section v-if="isMockMode" class="dark-panel weather-panel">
           <div>
             <span><MapPin :size="18" /> {{ weather.city }}</span>
             <strong>{{ weather.temperature }}℃</strong>
             <small>{{ weather.condition }} · 体感 {{ weather.feelsLike }}℃ · AQI {{ weather.aqi }}</small>
           </div>
           <p>{{ weather.wind }}，{{ weather.suggestion }}</p>
+        </section>
+        <section v-else class="dark-panel weather-panel">
+          <div>
+            <span><MapPin :size="18" /> 后端真实数据模式</span>
+            <strong>API</strong>
+            <small>当前页面读取 `/dashboard/overview`、Activities 与统计聚合接口。</small>
+          </div>
+          <p>天气与健康设备指标尚未有后端表和接口，这里不展示合成数据，避免和真实数据库内容混淆。</p>
         </section>
 
         <section class="dark-panel training-panel">
@@ -45,21 +53,32 @@
             </div>
             <RouterLink to="/calendar">训练日历</RouterLink>
           </div>
-          <div class="training-empty">
+          <div v-if="isMockMode" class="training-empty">
             <CalendarDays :size="28" />
             <strong>{{ todayPlan.title }}</strong>
             <p>{{ todayPlan.description }}</p>
           </div>
-          <div class="training-targets">
+          <div v-else class="training-empty">
+            <CalendarDays :size="28" />
+            <strong>训练安排接口待补充</strong>
+            <p>当前使用后端训练负荷、统计和日历数据；专项训练计划尚未进入数据库接口。</p>
+          </div>
+          <div v-if="isMockMode" class="training-targets">
             <span><small>建议训练</small><b>{{ todayPlan.nextWorkout }}</b></span>
             <span><small>目标配速</small><b>{{ todayPlan.pace }}</b></span>
             <span><small>目标心率</small><b>{{ todayPlan.heartRateZone }}</b></span>
             <span><small>预计时长</small><b>{{ todayPlan.duration }}</b></span>
           </div>
+          <div v-else class="training-targets">
+            <span><small>最近负荷</small><b>{{ latestLoad.dailyTrainingLoad ?? '--' }}</b></span>
+            <span><small>CTL</small><b>{{ latestLoad.ctl ?? '--' }}</b></span>
+            <span><small>ATL</small><b>{{ latestLoad.atl ?? '--' }}</b></span>
+            <span><small>TSB</small><b>{{ latestLoad.tsb ?? '--' }}</b></span>
+          </div>
         </section>
       </div>
 
-      <section class="dark-panel">
+      <section v-if="isMockMode" class="dark-panel">
         <div class="section-heading">
           <div>
             <p class="overline">Daily health</p>
@@ -76,6 +95,19 @@
             <div class="progress-bar"><span :style="{ width: `${item.progress}%` }"></span></div>
           </article>
         </div>
+      </section>
+      <section v-else class="dark-panel">
+        <div class="section-heading">
+          <div>
+            <p class="overline">Daily health</p>
+            <h2>健康指标</h2>
+          </div>
+          <RouterLink to="/trends">查看真实趋势</RouterLink>
+        </div>
+        <StateBlock
+          title="暂无健康指标接口"
+          message="服务器当前已有 Garmin 活动、统计、训练负荷和扩展模块表；静息心率、HRV、睡眠等日健康指标尚未开放后端接口。"
+        />
       </section>
 
       <div class="metric-grid">
@@ -107,6 +139,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { CalendarDays, MapPin, Play } from '@lucide/vue'
 
@@ -115,13 +148,17 @@ import MetricCard from '@/components/MetricCard.vue'
 import StateBlock from '@/components/StateBlock.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { healthMetrics, todayPlan, weather } from '@/mock/garsync'
-import { getDashboardOverview } from '@/services/activities'
+import { useMockData } from '@/services/api'
+import { getDashboardOverview } from '@/services/dashboard'
 import { formatDistance } from '@/utils/formatters'
 
 const router = useRouter()
+const isMockMode = useMockData()
 const { data: overview, error, load, loading } = useAsyncData(getDashboardOverview, {
   recentActivities: [],
   monthlySummary: {},
   yearlySummary: {},
+  trainingLoad: [],
 })
+const latestLoad = computed(() => overview.value?.trainingLoad?.at(-1) || {})
 </script>
