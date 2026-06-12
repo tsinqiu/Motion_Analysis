@@ -1,7 +1,18 @@
 import { request } from 'node:http'
 
 const baseUrl = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:5173'
-const paths = ['/', '/activities', '/activities/1001', '/analytics', '/schema', '/mobile-preview']
+const paths = [
+  '/',
+  '/today',
+  '/activities',
+  '/activities/1001',
+  '/calendar',
+  '/trends',
+  '/training-load',
+  '/statistics',
+  '/records',
+  '/schema',
+]
 
 function checkPath(path) {
   const url = new URL(path, baseUrl)

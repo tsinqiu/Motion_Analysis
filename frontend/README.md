@@ -1,6 +1,6 @@
 # Garmin 运动数据分析数据库管理系统前端
 
-本目录是 Motion Analysis 的 Vue 前端工程，用于展示 Garmin 运动数据分析数据库管理系统中的活动、摘要、轨迹点、分段和统计结果。前端只调用后端 API，不直接连接 MySQL；后端 API 未完成前默认使用 mock 数据开发页面。
+本目录是 Motion Analysis 的 Vue 前端工程，定位为 GarSync 风格的 Garmin 运动数据分析数据库管理系统前端。前端只调用后端 API，不直接连接 MySQL；后端接口或数据库未就绪时，默认使用合成 mock 数据完成页面展示和本地验收。
 
 本目录 README 只维护前端说明；根目录 `README.md` 是项目总说明，不由前端实现自动修改。
 
@@ -13,14 +13,24 @@
 - ECharts
 - @lucide/vue
 
-## 页面骨架
+## 功能页面
 
-- 首页概览：活动总览、趋势图、轨迹预览、最近运动。
-- 活动列表：展示 `Activities` + `Sessions` 的列表数据。
-- 运动详情：展示单次活动摘要、心率曲线、速度曲线、轨迹点和分段。
-- 统计分析：展示运动类型占比和聚合统计。
-- 数据库结构：按 dev 分支 `database/sql/01_schema.sql` 展示表、字段、关系和索引口径。
-- 移动端效果：复现暗色 Garmin 风格的活动列表、训练负荷、趋势、统计、今日状态和运动日历交互。
+- `/today`：今日首页，展示天气、训练安排、健康指标、最近运动和开始运动入口。
+- `/activities`：我的运动，支持类型筛选、关键词、日期、排序、分页和手动添加。
+- `/activities/:id`：运动详情，展示摘要、轨迹、心率、速度、分段、手动编辑和跑步负荷预测。
+- `/calendar`：运动日历，按月展示每日运动图标，点击日期查看当天活动。
+- `/trends`：趋势分析，支持运动类型、时间范围和指标切换。
+- `/training-load`：训练负荷平衡，展示 CTL、ATL、TSB 曲线与状态建议。
+- `/statistics`：运动统计，支持按月、按年、全部汇总。
+- `/records`：最佳记录，展示步数、跑步、骑行和游泳个人最佳。
+- `/sync`：同步中心，展示第三方平台连接状态与本地模拟同步流程。
+- `/explore`：探索内容，展示训练课程和运动知识样例。
+- `/community`：运动圈，展示本地模拟运动动态。
+- `/settings`：设置与隐私，展示单位、隐私和同步偏好。
+- `/start`：开始运动，模拟实时记录并可保存为手动运动。
+- `/schema`：数据库结构，按 dev 分支 `database/sql/01_schema.sql` 展示表、字段、关系和索引口径。
+
+`/` 会重定向到 `/today`。`/analytics` 保留为兼容重定向，实际进入 `/statistics`。旧的独立预览页已经移除，视频参考中的能力已迁移为正式业务页面。
 
 ## 本地运行
 
@@ -55,6 +65,8 @@ npm run dev -- --host 127.0.0.1
 npm run smoke
 ```
 
+当前 smoke 路由包括 `/`、`/today`、`/activities`、`/activities/1001`、`/calendar`、`/trends`、`/training-load`、`/statistics`、`/records`、`/schema`。
+
 ## 环境变量
 
 复制 `.env.example` 为 `.env` 后可按需修改。`.env` 只用于本地，不要提交。
@@ -64,9 +76,7 @@ VITE_API_BASE_URL=http://localhost:8080/api
 VITE_USE_MOCK=true
 ```
 
-`VITE_USE_MOCK=true` 时使用 `src/mock` 中的模拟数据；设置为 `false` 时通过 `src/services` 调用后端 API。
-
-当前 mock 数据只用于前端开发，坐标、活动编号和运动指标均为合成样例，不包含真实个人轨迹。
+`VITE_USE_MOCK=true` 时使用 `src/mock` 中的合成运动数据；设置为 `false` 时通过 `src/services` 调用后端 API。
 
 生产部署到 Nginx 同源环境时推荐使用：
 
@@ -75,7 +85,7 @@ VITE_API_BASE_URL=/api
 VITE_USE_MOCK=false
 ```
 
-可以参考 `.env.production.example`。不要把真实服务器账号、数据库账号、私钥或个人邮箱写入环境文件。
+不要把真实服务器账号、数据库账号、私钥、个人邮箱、真实 `.env` 或个人轨迹原始文件写入前端源码。
 
 ## 后端 dev API 对接
 
@@ -110,13 +120,12 @@ VITE_USE_MOCK=false
 - `GET /training/load-balance`
 - `POST /auth/login`
 - `POST /manual-activities`
+- `GET /manual-activities/:id`
+- `PUT /manual-activities/:id`
+- `DELETE /manual-activities/:id`
 - `POST /ml/running-prediction`
 
-鉴权、手动上传和模型预测接口已经在服务层预留，当前页面仍以活动管理、详情和统计展示为主。
-
-## 移动端效果说明
-
-`/mobile-preview` 用于展示视频参考中的深色移动端运动数据体验。页面仍然只消费前端 mock/API 层数据，活动列表来自 `Activities` + `Sessions` 字段，训练负荷、趋势、统计和日历为合成展示数据，不包含真实轨迹或个人运动记录。
+同步中心、探索、运动圈、天气、健康指标和设置页当前为前端合成样例或本地状态；后续如后端提供真实接口，可继续在 `src/services` 中接入。
 
 ## Nginx + Express 部署对接
 
@@ -139,36 +148,13 @@ GET http://服务器公网IP/api/activities/1001
 GET http://服务器公网IP/api/stats/activity-types
 ```
 
-Nginx 示例配置在 `backend/docs/nginx-motion-analysis.conf`。其中 `location /` 使用 `try_files $uri $uri/ /index.html;`，用于支持 Vue Router history 模式，避免刷新 `/activities` 或 `/analytics` 时出现 404。
+Nginx 示例配置在 `backend/docs/nginx-motion-analysis.conf`。其中 `location /` 使用 `try_files $uri $uri/ /index.html;`，用于支持 Vue Router history 模式，避免刷新 `/activities`、`/calendar`、`/trends`、`/statistics` 等前端路由时出现 404。
 
-后端 Express 默认监听服务器本机 `127.0.0.1:8080`，并建议统一保留 `/api` 前缀，例如：
+## 隐私与数据边界
 
-```text
-GET /api/activities
-GET /api/activities/:id
-GET /api/activities/:id/track-points
-GET /api/activities/:id/heart-rate
-GET /api/activities/:id/speed
-GET /api/activities/:id/laps
-GET /api/dashboard/overview
-GET /api/stats/activity-types
-```
-
-如果后端实际只暴露 `/activities` 这类无 `/api` 前缀的路由，需要同步调整 Nginx `proxy_pass` 规则；当前推荐保留 `/api` 前缀，前后端约定最清晰。
-
-部署后建议检查：
-
-```text
-http://服务器公网IP/
-http://服务器公网IP/activities
-http://服务器公网IP/schema
-http://服务器公网IP/api/activities
-```
-
-首页和活动页应能直接刷新，`/api/activities` 应返回 JSON。
-
-## 本地协作说明
-
-当前前端开发以 `feature/frontend` 分支为目标；如果 GitHub clone 不稳定，可以先使用下载包本地开发，恢复连接后再把 `frontend/` 变更迁移回真实 Git checkout。不要提交 `.env`、真实个人轨迹、邮箱、密钥或本机路径。
+- mock 坐标、活动编号、健康指标、天气、社区动态均为合成样例。
+- 前端不提交真实 FIT/JSON/GPX/TCX、数据库 dump、签名 URL、服务器地址、密钥或本机路径。
+- 数据库结构页只做只读展示，不提供 MySQL 全表任意增删改。
+- 手动运动 CRUD 只走后端 `/manual-activities` 安全接口；mock 模式下仅保存在当前前端会话内。
 
 Frontend: Hao Chen

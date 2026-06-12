@@ -1,7 +1,7 @@
 import { onMounted, ref } from 'vue'
 
-export function useAsyncData(loader) {
-  const data = ref(null)
+export function useAsyncData(loader, initialValue = null) {
+  const data = ref(initialValue)
   const error = ref('')
   const loading = ref(false)
 

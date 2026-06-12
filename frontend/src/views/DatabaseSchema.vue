@@ -11,7 +11,7 @@
       </div>
       <div class="hero-actions">
         <RouterLink class="primary-link" to="/activities">查看活动数据</RouterLink>
-        <RouterLink class="secondary-link inverse" to="/analytics">统计分析</RouterLink>
+        <RouterLink class="secondary-link inverse" to="/statistics">统计分析</RouterLink>
       </div>
     </section>
 
