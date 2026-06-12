@@ -17,7 +17,7 @@ const { sendData } = require('../response');
 
 const TIMELINE_GROUPS = ['day', 'month'];
 const SUMMARY_RANGES = ['month', 'year', 'all'];
-const TREND_RANGES = ['3m', '6m', '1y'];
+const TREND_RANGES = ['42d', '3m', '6m', '1y', '2y'];
 const TREND_METRICS = [
   'avg_cadence_spm',
   'avg_heart_rate_bpm',
@@ -32,7 +32,7 @@ const TREND_METRICS = [
   'body_battery_delta'
 ];
 const OWNER_FILTERS = ['all', 'admin', 'mine'];
-const SOURCE_FILTERS = ['garmin_import', 'manual_upload'];
+const SOURCE_FILTERS = ['garmin_import', 'manual_upload', 'live_workout'];
 
 function parseStatsFilters(query, user) {
   const { startDate, endDate } = parseDateRange(query, { maxDays: 1095 });

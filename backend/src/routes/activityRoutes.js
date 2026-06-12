@@ -27,7 +27,7 @@ const ACTIVITY_SORT_FIELDS = [
   'activity_training_load'
 ];
 const OWNER_FILTERS = ['all', 'admin', 'mine'];
-const SOURCE_FILTERS = ['garmin_import', 'manual_upload'];
+const SOURCE_FILTERS = ['garmin_import', 'manual_upload', 'live_workout'];
 
 function createActivityRouter(activityService = defaultActivityService, authService = defaultAuthService) {
   const router = express.Router();

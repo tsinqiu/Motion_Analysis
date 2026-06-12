@@ -125,6 +125,10 @@ function parseActivityType(value) {
   }
 
   const text = String(value).trim();
+  if (text === 'all') {
+    return undefined;
+  }
+
   if (!/^[a-zA-Z0-9_ -]{1,80}$/.test(text)) {
     throw new ApiError(400, 'activity_type contains unsupported characters', 'INVALID_QUERY');
   }

@@ -23,9 +23,25 @@ const FEATURE_LIMITS = {
 
 function parseRunningFeatures(body, featureNames) {
   const features = {};
+  const normalizedBody = {
+    ...body
+  };
+
+  if (
+    (normalizedBody.maxCadenceSpm === undefined || normalizedBody.maxCadenceSpm === null || normalizedBody.maxCadenceSpm === '')
+    && normalizedBody.avgCadenceSpm !== undefined
+    && normalizedBody.avgCadenceSpm !== null
+    && normalizedBody.avgCadenceSpm !== ''
+  ) {
+    normalizedBody.maxCadenceSpm = normalizedBody.avgCadenceSpm;
+  }
+
+  if (normalizedBody.normalizedPowerW === undefined || normalizedBody.normalizedPowerW === null || normalizedBody.normalizedPowerW === '') {
+    normalizedBody.normalizedPowerW = normalizedBody.avgPowerW ?? 0;
+  }
 
   for (const name of featureNames) {
-    const value = body[name];
+    const value = normalizedBody[name];
     const limits = FEATURE_LIMITS[name];
 
     if (value === undefined || value === null || value === '') {

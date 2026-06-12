@@ -11,9 +11,11 @@ const SORT_COLUMNS = {
 };
 
 const TRAINING_RANGE_DAYS = {
+  '42d': 42,
   '3m': 90,
   '6m': 183,
-  '1y': 365
+  '1y': 365,
+  '2y': 730
 };
 
 const TREND_METRICS = {
@@ -138,8 +140,13 @@ function mapActivitySummary(row) {
     activityName: row.activityName,
     activityType: row.activityType,
     localStartTime: row.localStartTime,
+    locationName: row.locationName,
+    dataSource: row.dataSource,
+    isManual: row.isManual,
     distanceKm: row.distanceKm,
+    distanceM: row.distanceM,
     durationS: row.durationS,
+    movingDurationS: row.movingDurationS,
     calories: row.calories,
     avgHeartRateBpm: row.avgHeartRateBpm,
     activityTrainingLoad: row.activityTrainingLoad
@@ -166,9 +173,9 @@ function buildActivityFilters({ activityType, startDate, endDate, keyword, sourc
   }
 
   if (keyword) {
-    where.push('(a.activity_name LIKE ? OR a.location_name LIKE ? OR a.activity_type LIKE ?)');
+    where.push('(a.activity_name LIKE ? OR a.location_name LIKE ? OR a.activity_type LIKE ? OR a.activity_key LIKE ? OR a.garmin_activity_id LIKE ?)');
     const pattern = `%${keyword}%`;
-    params.push(pattern, pattern, pattern);
+    params.push(pattern, pattern, pattern, pattern, pattern);
   }
 
   if (source) {
@@ -225,9 +232,11 @@ async function listActivities({
     SELECT
       a.id,
       a.garmin_activity_id AS garminActivityId,
+      a.activity_key AS activityKey,
       a.activity_name AS activityName,
       a.activity_type AS activityType,
       a.local_start_time AS localStartTime,
+      a.start_time_utc AS startTimeUtc,
       a.location_name AS locationName,
       a.owner_user_id AS ownerUserId,
       u.username AS ownerUsername,
@@ -236,10 +245,23 @@ async function listActivities({
       ROUND(s.total_distance_m / 1000, 2) AS fitDistanceKm,
       ROUND(js.distance_m / 1000, 2) AS jsonDistanceKm,
       s.total_timer_time_s AS fitTimerTimeS,
+      COALESCE(js.distance_m, s.total_distance_m) AS distanceM,
+      COALESCE(js.duration_s, s.total_timer_time_s) AS durationS,
       js.moving_duration_s AS movingDurationS,
+      js.elapsed_duration_s AS elapsedDurationS,
+      js.calories,
+      js.avg_speed_mps AS avgSpeedMps,
+      js.max_speed_mps AS maxSpeedMps,
       ROUND(js.duration_s / NULLIF(js.distance_m / 1000, 0), 2) AS avgPaceSecPerKm,
       js.avg_heart_rate_bpm AS avgHeartRateBpm,
       js.max_heart_rate_bpm AS maxHeartRateBpm,
+      COALESCE(js.avg_cadence_spm, s.avg_cadence) AS avgCadenceSpm,
+      js.max_cadence_spm AS maxCadenceSpm,
+      COALESCE(js.avg_power_w, s.avg_power_w) AS avgPowerW,
+      COALESCE(js.max_power_w, s.max_power_w) AS maxPowerW,
+      COALESCE(js.normalized_power_w, s.normalized_power_w) AS normalizedPowerW,
+      COALESCE(js.elevation_gain_m, s.total_ascent_m) AS elevationGainM,
+      COALESCE(js.elevation_loss_m, s.total_descent_m) AS elevationLossM,
       js.activity_training_load AS activityTrainingLoad,
       js.aerobic_training_effect AS aerobicTrainingEffect,
       js.anaerobic_training_effect AS anaerobicTrainingEffect,
@@ -272,6 +294,7 @@ async function getActivityById(activityId) {
       SELECT
         a.id,
         a.garmin_activity_id AS garminActivityId,
+        a.activity_key AS activityKey,
         a.activity_name AS activityName,
         a.activity_type AS activityType,
         a.local_start_time AS localStartTime,
@@ -298,10 +321,11 @@ async function getActivityById(activityId) {
         js.avg_heart_rate_bpm AS avgHeartRateBpm,
         js.max_heart_rate_bpm AS maxHeartRateBpm,
         s.avg_cadence AS fitSingleLegCadence,
-        js.avg_cadence_spm AS avgCadenceSpm,
-        js.avg_power_w AS avgPowerW,
-        js.max_power_w AS maxPowerW,
-        js.normalized_power_w AS normalizedPowerW,
+        COALESCE(js.avg_cadence_spm, s.avg_cadence) AS avgCadenceSpm,
+        js.max_cadence_spm AS maxCadenceSpm,
+        COALESCE(js.avg_power_w, s.avg_power_w) AS avgPowerW,
+        COALESCE(js.max_power_w, s.max_power_w) AS maxPowerW,
+        COALESCE(js.normalized_power_w, s.normalized_power_w) AS normalizedPowerW,
         js.activity_training_load AS activityTrainingLoad,
         js.aerobic_training_effect AS aerobicTrainingEffect,
         js.anaerobic_training_effect AS anaerobicTrainingEffect,
@@ -309,8 +333,8 @@ async function getActivityById(activityId) {
         js.vo2max,
         js.body_battery_delta AS bodyBatteryDelta,
         js.water_estimated_ml AS waterEstimatedMl,
-        js.elevation_gain_m AS elevationGainM,
-        js.elevation_loss_m AS elevationLossM
+        COALESCE(js.elevation_gain_m, s.total_ascent_m) AS elevationGainM,
+        COALESCE(js.elevation_loss_m, s.total_descent_m) AS elevationLossM
       FROM Activities a
       LEFT JOIN Users u ON u.id = a.owner_user_id
       LEFT JOIN Sessions s ON s.activity_id = a.id
@@ -431,8 +455,13 @@ async function getDailyActivitySummaries(filters) {
         a.activity_name AS activityName,
         a.activity_type AS activityType,
         a.local_start_time AS localStartTime,
+        a.location_name AS locationName,
+        a.data_source AS dataSource,
+        a.is_manual AS isManual,
         ROUND(js.distance_m / 1000, 2) AS distanceKm,
+        js.distance_m AS distanceM,
         js.duration_s AS durationS,
+        js.moving_duration_s AS movingDurationS,
         js.calories,
         js.avg_heart_rate_bpm AS avgHeartRateBpm,
         js.activity_training_load AS activityTrainingLoad
@@ -549,8 +578,11 @@ async function getActivityTypeStats(filters) {
       a.activity_type AS activityType,
       COUNT(*) AS activityCount,
       ROUND(COUNT(*) * 100 / NULLIF(SUM(COUNT(*)) OVER (), 0), 1) AS percentage,
+      ROUND(SUM(js.distance_m), 2) AS totalDistanceM,
       ROUND(SUM(js.distance_m) / 1000, 2) AS totalDistanceKm,
+      ROUND(SUM(js.duration_s), 2) AS totalDurationS,
       ROUND(SUM(js.duration_s) / 60, 1) AS totalDurationMin,
+      ROUND(SUM(js.moving_duration_s), 2) AS totalMovingDurationS,
       ROUND(SUM(js.moving_duration_s) / 60, 1) AS totalMovingMin,
       ROUND(SUM(js.calories), 1) AS totalCalories,
       ROUND(AVG(js.duration_s / NULLIF(js.distance_m / 1000, 0)), 2) AS avgPaceSecPerKm,
@@ -579,8 +611,11 @@ async function getSummaryStats(filters) {
     `
       SELECT
         COUNT(*) AS activityCount,
+        ROUND(SUM(js.distance_m), 2) AS totalDistanceM,
         ROUND(SUM(js.distance_m) / 1000, 2) AS totalDistanceKm,
+        ROUND(SUM(js.duration_s), 2) AS totalDurationS,
         ROUND(SUM(js.duration_s) / 60, 1) AS totalDurationMin,
+        ROUND(SUM(js.moving_duration_s), 2) AS totalMovingDurationS,
         ROUND(SUM(js.moving_duration_s) / 60, 1) AS totalMovingMin,
         ROUND(SUM(js.calories), 1) AS totalCalories,
         ROUND(AVG(js.duration_s / NULLIF(js.distance_m / 1000, 0)), 2) AS avgPaceSecPerKm,
@@ -599,8 +634,11 @@ async function getSummaryStats(filters) {
   );
 
   const byActivityType = await getActivityTypeStats(resolvedFilters);
+  const summary = rows[0] || {};
+  const totalCalories = Number(summary.totalCalories || 0);
   return {
-    ...rows[0],
+    ...summary,
+    fatKg: roundNumber(totalCalories / 7700, 4),
     byActivityType
   };
 }
@@ -617,8 +655,11 @@ async function getTimelineStats({ groupBy, ...filters }) {
       SELECT
         ${periodExpression} AS period,
         COUNT(*) AS activityCount,
+        ROUND(SUM(js.distance_m), 2) AS totalDistanceM,
         ROUND(SUM(js.distance_m) / 1000, 2) AS totalDistanceKm,
+        ROUND(SUM(js.duration_s), 2) AS totalDurationS,
         ROUND(SUM(js.duration_s) / 60, 1) AS totalDurationMin,
+        ROUND(SUM(js.calories), 1) AS totalCalories,
         ROUND(SUM(js.activity_training_load), 1) AS totalTrainingLoad,
         ROUND(AVG(js.avg_heart_rate_bpm), 1) AS avgHeartRateBpm
       FROM Activities a
@@ -720,6 +761,13 @@ async function getCalendarStats({ month, ...filters }) {
       totalDistanceKm: Number(row?.totalDistanceKm || 0),
       totalDurationS: Number(row?.totalDurationS || 0),
       totalCalories: Number(row?.totalCalories || 0),
+      totals: {
+        activityCount: Number(row?.activityCount || 0),
+        totalDistanceKm: Number(row?.totalDistanceKm || 0),
+        totalDistanceM: roundNumber(Number(row?.totalDistanceKm || 0) * 1000, 2),
+        totalDurationS: Number(row?.totalDurationS || 0),
+        totalCalories: Number(row?.totalCalories || 0)
+      },
       activities: activitiesByDate.get(date) || []
     });
   }
@@ -851,6 +899,7 @@ async function getBestPeriodDistance(filters, { key, label, periodExpression }) 
 async function getPersonalBests(filters) {
   const running = [];
   const cycling = [];
+  const swimming = [];
   const overall = [];
 
   const add = (target, item) => {
@@ -960,6 +1009,16 @@ async function getPersonalBests(filters) {
     unit: 'load'
   }));
 
+  add(swimming, await getBestActivity(filters, {
+    key: 'longest_distance',
+    label: '最长距离',
+    activityType: 'swimming',
+    where: 'js.distance_m IS NOT NULL',
+    orderBy: 'js.distance_m DESC',
+    valueExpression: 'ROUND(js.distance_m / 1000, 2)',
+    unit: 'km'
+  }));
+
   add(overall, await getBestPeriodDistance(filters, {
     key: 'highest_single_day_distance',
     label: '单日最高运动距离',
@@ -984,7 +1043,13 @@ async function getPersonalBests(filters) {
     unit: 'kcal'
   }));
 
-  return { running, cycling, overall };
+  return {
+    steps: [],
+    running,
+    cycling,
+    swimming,
+    overall
+  };
 }
 
 async function getDashboardOverview(filters = {}) {

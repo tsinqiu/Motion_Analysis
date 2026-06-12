@@ -73,10 +73,10 @@ Supported query parameters:
 
 - `page`, `page_size`: preferred pagination.
 - `limit`, `offset`: backwards-compatible pagination.
-- `activity_type`: activity type such as `running`.
+- `activity_type`: activity type such as `running`; `all` is treated as no activity-type filter for frontend compatibility.
 - `start_date`, `end_date`: local date range in `YYYY-MM-DD`; if both are provided, the range must be 1095 days or less.
-- `keyword`: searches activity name, location, and activity type; maximum length is 100 characters.
-- `source`: `garmin_import` or `manual_upload`.
+- `keyword`: searches activity name, location, activity type, activity key, and Garmin activity id; maximum length is 100 characters.
+- `source`: `garmin_import`, `manual_upload`, or `live_workout`.
 - `owner`: `all`, `admin`, or `mine`; `mine` requires login.
 - `sort_by`: `local_start_time`, `distance_m`, `duration_s`, `avg_heart_rate_bpm`, `max_heart_rate_bpm`, `avg_pace`, `activity_training_load`.
 - `sort_order`: `asc` or `desc`.
@@ -92,7 +92,7 @@ PUT    /api/manual-activities/:id
 DELETE /api/manual-activities/:id
 ```
 
-Manual upload only stores summary data. It does not automatically run ML prediction.
+Manual upload only stores summary data. It does not automatically run ML prediction. `distanceM` may be `0` for non-distance activities such as strength training, but `durationS` must be greater than `0`.
 
 Example body:
 
@@ -138,7 +138,7 @@ Stats endpoints support the same filters as activities where relevant: `activity
 - `range=year&date=2026`
 - `range=all`
 
-Summary includes total count, total distance, total duration, total calories, average pace, average heart rate, average speed, longest distance, fastest pace, total training load, and `byActivityType`.
+Summary includes total count, `totalDistanceM`, `totalDistanceKm`, `totalDurationS`, `totalDurationMin`, moving duration, total calories, `fatKg`, average pace, average heart rate, average speed, longest distance, fastest pace, total training load, and `byActivityType`.
 
 `GET /api/stats/metric-trend` supports:
 
@@ -156,9 +156,9 @@ vo2max
 body_battery_delta
 ```
 
-Trend ranges are `3m`, `6m`, and `1y`. Unsupported metrics return `400 UNSUPPORTED_METRIC`.
+Trend ranges are `42d`, `3m`, `6m`, `1y`, and `2y`. Unsupported metrics return `400 UNSUPPORTED_METRIC`.
 
-`GET /api/stats/calendar` returns one entry for each day in the requested month, including activity count, activity types, totals, and activity summaries.
+`GET /api/stats/calendar` returns one entry for each day in the requested month, including activity count, activity types, top-level totals, a `totals` object, and activity summaries. Days without activities return `activityCount=0` and `activities=[]`.
 
 Stats endpoints are cached in memory. Cache keys include route, query parameters, and user identity. Manual activity create/update/delete clears this cache. The default TTL is configured by:
 
@@ -176,7 +176,7 @@ Zone 4: 阈值
 Zone 5: 高强度
 ```
 
-Personal bests are grouped into `running`, `cycling`, and `overall`. Items are omitted when current data is insufficient.
+Personal bests are grouped into `steps`, `running`, `cycling`, `swimming`, and `overall`. Groups without reliable data return an empty array; the backend does not synthesize fake records.
 
 ## Training
 
@@ -184,7 +184,7 @@ Personal bests are grouped into `running`, `cycling`, and `overall`. Items are o
 GET /api/training/load-balance?range=3m&end_date=2026-06-10
 ```
 
-`range` supports `3m`, `6m`, and `1y`. The endpoint returns daily training load plus CTL, ATL, and TSB values calculated from existing training load data. Each point includes the activities for that day.
+`range` supports `42d`, `3m`, `6m`, `1y`, and `2y`. The endpoint returns daily training load plus CTL, ATL, and TSB values calculated from existing training load data. Each point includes the activities for that day.
 
 Example response:
 
@@ -216,6 +216,63 @@ GET /api/dashboard/overview
 
 Returns recent activities, monthly summary, yearly summary, recent training load, and personal best summaries for the first screen.
 
+## Extension Modules
+
+These modules persist real backend state but do not call third-party provider APIs yet. Garmin, Strava, COROS, and Apple Health adapters currently return `adapterStatus="not_configured"` and do not import fake activities.
+
+Sync APIs require login:
+
+```text
+GET  /api/sync/providers
+PUT  /api/sync/providers/:provider/settings
+POST /api/sync/providers/:provider/authorize
+POST /api/sync/providers/:provider/disconnect
+POST /api/sync/jobs
+GET  /api/sync/jobs?page=1&page_size=20
+GET  /api/sync/logs?page=1&page_size=20
+```
+
+Community read APIs are public; write APIs require login:
+
+```text
+GET    /api/community/posts?page=1&page_size=20
+POST   /api/community/posts
+GET    /api/community/posts/:id/comments
+POST   /api/community/posts/:id/comments
+POST   /api/community/posts/:id/like
+DELETE /api/community/posts/:id/like
+POST   /api/community/posts/:id/share
+```
+
+Explore article APIs are public:
+
+```text
+GET /api/explore/articles?type=course&keyword=base
+GET /api/explore/articles/:id
+GET /api/explore/recommendations
+```
+
+User settings require login:
+
+```text
+GET /api/settings
+PUT /api/settings
+```
+
+Live workout APIs require login:
+
+```text
+POST /api/workouts
+GET  /api/workouts/:id
+POST /api/workouts/:id/track-points
+POST /api/workouts/:id/pause
+POST /api/workouts/:id/resume
+POST /api/workouts/:id/finish
+POST /api/workouts/:id/cancel
+```
+
+`finish` creates a real activity with `data_source="live_workout"`, writes summaries, and copies collected workout points into `TrackPoints`. Finishing a workout clears the stats cache.
+
 ## ML Running Prediction
 
 ```text
@@ -245,6 +302,8 @@ Prediction is intentionally separate from upload. The frontend should show a sep
   "normalizedPowerW": 220
 }
 ```
+
+For compatibility with the current activity-detail page, `maxCadenceSpm` defaults to `avgCadenceSpm` when omitted, and `normalizedPowerW` defaults to `avgPowerW` or `0` when omitted.
 
 It returns:
 
@@ -314,3 +373,11 @@ source database/sql/05_performance_indexes.sql;
 ```
 
 The script is idempotent and can be re-run safely.
+
+Apply the extension module migration before using sync, community, explore, settings, or live workout APIs:
+
+```sql
+source database/sql/06_extension_modules.sql;
+```
+
+The extension migration uses `CREATE TABLE IF NOT EXISTS` and can be re-run safely.
