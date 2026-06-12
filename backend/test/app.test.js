@@ -1448,6 +1448,28 @@ test('activityService summary, calendar, and personal bests expose frontend-comp
   }
 });
 
+test('activityService activity type stats avoids MySQL 8 window functions', async () => {
+  const originalQuery = db.query;
+  let capturedSql;
+  db.query = async (sql) => {
+    capturedSql = sql;
+    return [
+      { activityType: 'running', activityCount: 3, totalDistanceM: 15000 },
+      { activityType: 'cycling', activityCount: 1, totalDistanceM: 20000 }
+    ];
+  };
+
+  try {
+    const rows = await activityServiceModule.getActivityTypeStats({});
+
+    assert.equal(rows[0].percentage, 75);
+    assert.equal(rows[1].percentage, 25);
+    assert.doesNotMatch(capturedSql, /OVER\s*\(/i);
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
 test('workoutService finish rejects workouts without track points', async () => {
   const originalTransaction = db.transaction;
   db.transaction = async (handler) => {

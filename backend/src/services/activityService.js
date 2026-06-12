@@ -572,12 +572,11 @@ async function getLoadBalance({ range, endDate, ...filters }) {
 async function getActivityTypeStats(filters) {
   const activityFilters = buildActivityFilters(filters);
 
-  return db.query(
+  const rows = await db.query(
     `
     SELECT
       a.activity_type AS activityType,
       COUNT(*) AS activityCount,
-      ROUND(COUNT(*) * 100 / NULLIF(SUM(COUNT(*)) OVER (), 0), 1) AS percentage,
       ROUND(SUM(js.distance_m), 2) AS totalDistanceM,
       ROUND(SUM(js.distance_m) / 1000, 2) AS totalDistanceKm,
       ROUND(SUM(js.duration_s), 2) AS totalDurationS,
@@ -598,6 +597,12 @@ async function getActivityTypeStats(filters) {
   `,
     activityFilters.params
   );
+
+  const totalCount = rows.reduce((sum, row) => sum + Number(row.activityCount || 0), 0);
+  return rows.map((row) => ({
+    ...row,
+    percentage: totalCount ? roundNumber((Number(row.activityCount || 0) * 100) / totalCount, 1) : 0
+  }));
 }
 
 async function getSummaryStats(filters) {
