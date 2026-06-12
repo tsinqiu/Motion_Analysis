@@ -53,7 +53,7 @@ import { computed, reactive, ref, watch } from 'vue'
 
 import ChartPanel from '@/components/ChartPanel.vue'
 import StateBlock from '@/components/StateBlock.vue'
-import { getLoadBalance } from '@/services/activities'
+import { getLoadBalance } from '@/services/training'
 
 const ranges = [
   { label: '42天', value: '42d' },

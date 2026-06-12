@@ -4,7 +4,7 @@
       <div>
         <p class="overline">Start workout</p>
         <h2>开始运动</h2>
-        <p>模拟实时记录页：计时、距离、心率、暂停/继续/结束和保存手动运动。当前不读取真实 GPS。</p>
+        <p>创建后端 WorkoutSession，记录计时、距离、心率采样，结束后生成真实 live_workout 活动。</p>
       </div>
     </section>
 
@@ -14,6 +14,7 @@
         :key="sport.label"
         type="button"
         :class="{ active: selectedSport.label === sport.label }"
+        :disabled="Boolean(workout)"
         :style="{ '--sport-color': sport.color }"
         @click="selectedSport = sport"
       >
@@ -23,6 +24,7 @@
     </section>
 
     <section class="recording-panel dark-panel">
+      <span class="status-chip" :class="workout ? 'good' : 'neutral'">{{ workout ? `Workout #${workout.id}` : '未开始' }}</span>
       <div class="recording-time">{{ formatClockDuration(elapsed) }}</div>
       <div class="recording-metrics">
         <span><small>距离</small><b>{{ distanceKm.toFixed(2) }} km</b></span>
@@ -31,12 +33,20 @@
         <span><small>卡路里</small><b>{{ calories }} kcal</b></span>
       </div>
       <div class="recording-actions">
-        <button class="primary-link" type="button" @click="toggleRecording">
+        <button class="primary-link" type="button" :disabled="busy || saved" @click="toggleRecording">
           {{ running ? '暂停' : elapsed ? '继续' : '开始' }}
         </button>
-        <button class="secondary-link" type="button" :disabled="!elapsed" @click="finish">结束并保存</button>
+        <button class="secondary-link" type="button" :disabled="busy || !workout || elapsed < 1" @click="finish">
+          结束并保存
+        </button>
+        <button class="danger-link" type="button" :disabled="busy || !workout" @click="cancel">
+          取消
+        </button>
       </div>
-      <p v-if="saved" class="success-copy">运动已保存为手动记录，可在“我的运动”和“运动日历”中查看。</p>
+      <p class="muted-copy">当前不读取 GPS 坐标；后端只接收浏览器生成的时间、距离、速度、心率等采样指标。</p>
+      <p v-if="error" class="form-error">{{ error }}</p>
+      <p v-if="saved" class="success-copy">运动已保存为服务器活动，可在“我的运动”和“运动日历”查看。</p>
+      <RouterLink v-if="savedActivityId" class="secondary-link" :to="`/activities/${savedActivityId}`">查看活动详情</RouterLink>
     </section>
   </div>
 </template>
@@ -45,13 +55,25 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { startSportTypes } from '@/mock/garsync'
-import { createManualActivity } from '@/services/activities'
+import {
+  appendWorkoutTrackPoints,
+  cancelWorkout,
+  createWorkout,
+  finishWorkout,
+  pauseWorkout,
+  resumeWorkout,
+} from '@/services/workouts'
 import { formatClockDuration } from '@/utils/formatters'
 
 const selectedSport = ref(startSportTypes[0])
 const elapsed = ref(0)
 const running = ref(false)
 const saved = ref(false)
+const busy = ref(false)
+const error = ref('')
+const workout = ref(null)
+const savedActivityId = ref('')
+const startedAt = ref('')
 let timer = null
 
 const distanceKm = computed(() => {
@@ -66,27 +88,105 @@ const paceText = computed(() => {
   return `${Math.floor(secondsPerKm / 60)}:${String(Math.round(secondsPerKm % 60)).padStart(2, '0')} /km`
 })
 
-function toggleRecording() {
-  running.value = !running.value
+function sqlDate(date) {
+  return date.toISOString().replace('T', ' ').replace('Z', '').slice(0, 23)
+}
+
+function buildTrackPoints() {
+  const duration = Math.max(1, elapsed.value)
+  const interval = duration < 15 ? Math.max(1, Math.floor(duration / 3) || 1) : 5
+  const count = Math.min(100, Math.max(1, Math.floor(duration / interval)))
+  const start = startedAt.value ? new Date(startedAt.value.replace(' ', 'T')) : new Date()
+  return Array.from({ length: count }, (_, index) => {
+    const seconds = Math.min(duration, (index + 1) * interval)
+    const sampleTime = new Date(start)
+    sampleTime.setSeconds(start.getSeconds() + seconds)
+    const distanceM = Math.round(distanceKm.value * 1000 * (seconds / duration))
+    return {
+      sampleIndex: index,
+      sampleTimeUtc: sqlDate(sampleTime),
+      distanceM,
+      speedMps: Number((distanceM / Math.max(seconds, 1)).toFixed(2)),
+      heartRateBpm: Math.round(118 + Math.min(48, seconds / 18)),
+      cadence: selectedSport.value.type === 'cycling' ? 86 : 176,
+      powerW: selectedSport.value.type === 'cycling' ? 160 : null,
+    }
+  })
+}
+
+async function ensureWorkout() {
+  if (workout.value) return workout.value
+  startedAt.value = sqlDate(new Date())
+  workout.value = await createWorkout({
+    activityType: selectedSport.value.type,
+    startedAt: startedAt.value,
+  })
+  return workout.value
+}
+
+async function toggleRecording() {
+  busy.value = true
+  error.value = ''
   saved.value = false
+  try {
+    const current = await ensureWorkout()
+    if (running.value) {
+      await pauseWorkout(current.id)
+      running.value = false
+    } else {
+      if (elapsed.value > 0) await resumeWorkout(current.id)
+      running.value = true
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '开始运动失败'
+  } finally {
+    busy.value = false
+  }
 }
 
 async function finish() {
+  if (!workout.value) return
+  busy.value = true
   running.value = false
-  await createManualActivity({
-    activityName: selectedSport.value.label,
-    activityType: selectedSport.value.type,
-    localStartTime: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    locationName: '本地模拟',
-    distanceM: Math.round(distanceKm.value * 1000),
-    durationS: elapsed.value,
-    calories: calories.value,
-    avgHeartRateBpm: heartRate.value,
-    maxHeartRateBpm: heartRate.value + 12,
-    activityTrainingLoad: Math.round(elapsed.value / 60),
-  })
-  saved.value = true
-  elapsed.value = 0
+  error.value = ''
+  try {
+    const points = buildTrackPoints()
+    if (points.length) {
+      await appendWorkoutTrackPoints(workout.value.id, points)
+    }
+    const result = await finishWorkout(workout.value.id, {
+      activityName: selectedSport.value.label,
+      locationName: '浏览器记录',
+      distanceM: Math.round(distanceKm.value * 1000),
+      durationS: Math.max(1, elapsed.value),
+      calories: calories.value,
+    })
+    savedActivityId.value = result?.activity?.id || result?.activityId || ''
+    saved.value = true
+    workout.value = null
+    elapsed.value = 0
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '保存运动失败'
+  } finally {
+    busy.value = false
+  }
+}
+
+async function cancel() {
+  if (!workout.value) return
+  busy.value = true
+  running.value = false
+  error.value = ''
+  try {
+    await cancelWorkout(workout.value.id)
+    workout.value = null
+    elapsed.value = 0
+    savedActivityId.value = ''
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '取消运动失败'
+  } finally {
+    busy.value = false
+  }
 }
 
 watch(running, (active) => {

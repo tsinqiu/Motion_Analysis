@@ -84,7 +84,8 @@ import { Plus } from '@lucide/vue'
 import ActivityCard from '@/components/ActivityCard.vue'
 import ManualActivityModal from '@/components/ManualActivityModal.vue'
 import StateBlock from '@/components/StateBlock.vue'
-import { createManualActivity, getCalendarStats } from '@/services/activities'
+import { createManualActivity } from '@/services/activities'
+import { getCalendarStats } from '@/services/stats'
 
 const router = useRouter()
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

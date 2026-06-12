@@ -1019,8 +1019,64 @@ textarea {
 
 .post-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
+}
+
+.provider-controls,
+.provider-actions,
+.settings-actions,
+.form-row,
+.comment-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.provider-controls,
+.provider-actions,
+.form-row,
+.comment-form {
+  flex-wrap: wrap;
+}
+
+.provider-controls {
+  margin: 14px 0;
+}
+
+.provider-controls select {
+  max-width: 180px;
+}
+
+.compact-toggle {
+  width: max-content;
+  grid-template-columns: auto auto;
+}
+
+.provider-actions button,
+.settings-actions button,
+.comment-form button {
+  min-height: 38px;
+}
+
+.community-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.comment-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.comment-form input {
+  min-width: min(320px, 100%);
+  flex: 1;
 }
 
 .settings-grid {
@@ -1028,6 +1084,11 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--panel);
+}
+
+.settings-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
 }
 
 .toggle-row {
@@ -1053,6 +1114,8 @@ textarea {
 
 .recording-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
 }
 

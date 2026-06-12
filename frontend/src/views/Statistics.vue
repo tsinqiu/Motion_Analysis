@@ -42,7 +42,7 @@ import { computed, ref, watch } from 'vue'
 import ChartPanel from '@/components/ChartPanel.vue'
 import MetricCard from '@/components/MetricCard.vue'
 import StateBlock from '@/components/StateBlock.vue'
-import { getActivityTypeStats, getSummaryStats, getTimelineStats } from '@/services/activities'
+import { getActivityTypeStats, getSummaryStats, getTimelineStats } from '@/services/stats'
 import { formatCalories, formatClockDuration, formatDistance, formatFatKg } from '@/utils/formatters'
 
 const tabs = [

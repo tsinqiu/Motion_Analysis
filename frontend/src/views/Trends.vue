@@ -48,7 +48,7 @@ import ChartPanel from '@/components/ChartPanel.vue'
 import SportTabs from '@/components/SportTabs.vue'
 import StateBlock from '@/components/StateBlock.vue'
 import { sportFilters } from '@/mock/garsync'
-import { getMetricTrend } from '@/services/activities'
+import { getMetricTrend } from '@/services/stats'
 
 const ranges = [
   { label: '42天', value: '42d' },

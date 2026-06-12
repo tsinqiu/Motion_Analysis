@@ -7,12 +7,17 @@ const paths = [
   '/register',
   '/today',
   '/activities',
-  '/activities/1001',
+  '/activities/189',
   '/calendar',
   '/trends',
   '/training-load',
   '/statistics',
   '/records',
+  '/sync',
+  '/community',
+  '/explore',
+  '/settings',
+  '/start',
   '/schema',
 ]
 
