@@ -111,6 +111,7 @@ import SportTabs from '@/components/SportTabs.vue'
 import StateBlock from '@/components/StateBlock.vue'
 import { sportFilters } from '@/mock/garsync'
 import { createManualActivity, getActivityPage, updateManualActivity } from '@/services/activities'
+import { hasAuthToken, normalizeRedirect } from '@/stores/authStore'
 
 const router = useRouter()
 const activities = ref([])
@@ -150,11 +151,21 @@ function goToActivity(activity) {
 }
 
 function openCreate() {
+  if (!hasAuthToken()) {
+    error.value = '请先登录后再手动添加运动'
+    router.push({ name: 'login', query: { redirect: normalizeRedirect(router.currentRoute.value.fullPath) } })
+    return
+  }
   editingActivity.value = null
   modalOpen.value = true
 }
 
 function openEdit(activity) {
+  if (!hasAuthToken()) {
+    error.value = '请先登录后再编辑运动'
+    router.push({ name: 'login', query: { redirect: normalizeRedirect(router.currentRoute.value.fullPath) } })
+    return
+  }
   editingActivity.value = activity
   modalOpen.value = true
 }

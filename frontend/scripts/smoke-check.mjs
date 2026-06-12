@@ -3,6 +3,8 @@ import { request } from 'node:http'
 const baseUrl = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:5173'
 const paths = [
   '/',
+  '/login',
+  '/register',
   '/today',
   '/activities',
   '/activities/1001',

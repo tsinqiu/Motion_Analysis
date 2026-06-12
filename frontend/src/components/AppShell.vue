@@ -25,10 +25,19 @@
         </div>
         <div class="topbar-actions">
           <span class="api-status">{{ apiStatus }}</span>
+          <div class="user-chip" :title="authSession.user?.email">
+            <UserRound :size="16" />
+            <span>{{ userLabel }}</span>
+            <small>{{ roleLabel }}</small>
+          </div>
           <RouterLink class="topbar-start" to="/start">
             <Play :size="16" />
             开始
           </RouterLink>
+          <button class="topbar-logout" type="button" @click="handleLogout">
+            <LogOut :size="16" />
+            退出
+          </button>
         </div>
       </header>
 
@@ -45,6 +54,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Activity,
@@ -53,18 +63,28 @@ import {
   Compass,
   Database,
   HeartPulse,
+  LogOut,
   Play,
   RefreshCw,
   Settings,
   Trophy,
+  UserRound,
   Users,
 } from '@lucide/vue'
 
 import ApiModeBanner from '@/components/ApiModeBanner.vue'
 import { useMockData } from '@/services/http'
+import { authSession, signOut } from '@/stores/authStore'
 
 const route = useRoute()
 const apiStatus = useMockData() ? 'Mock 数据' : '后端 API'
+const userLabel = computed(() => authSession.user?.username || '已登录用户')
+const roleLabel = computed(() => authSession.user?.role === 'admin' ? '管理员' : '用户')
+
+function handleLogout() {
+  signOut()
+  window.location.assign('/login')
+}
 
 const navItems = [
   { to: '/today', label: '今日', icon: HeartPulse },

@@ -15,6 +15,8 @@
 
 ## 功能页面
 
+- `/login`：登录页，接入后端 JWT 登录接口，未登录访问业务页会自动跳转到这里。
+- `/register`：注册页，开放普通用户注册，注册成功后自动登录。
 - `/today`：今日首页，展示天气、训练安排、健康指标、最近运动和开始运动入口。
 - `/activities`：我的运动，支持类型筛选、关键词、日期、排序、分页和手动添加。
 - `/activities/:id`：运动详情，展示摘要、轨迹、心率、速度、分段、手动编辑和跑步负荷预测。
@@ -30,7 +32,7 @@
 - `/start`：开始运动，模拟实时记录并可保存为手动运动。
 - `/schema`：数据库结构，按 dev 分支 `database/sql/01_schema.sql` 展示表、字段、关系和索引口径。
 
-`/` 会重定向到 `/today`。`/analytics` 保留为兼容重定向，实际进入 `/statistics`。旧的独立预览页已经移除，视频参考中的能力已迁移为正式业务页面。
+`/` 会重定向到 `/today`，但业务页面需要登录后访问。`/analytics` 保留为兼容重定向，实际进入 `/statistics`。旧的独立预览页已经移除，视频参考中的能力已迁移为正式业务页面。
 
 ## 本地运行
 
@@ -65,7 +67,7 @@ npm run dev -- --host 127.0.0.1
 npm run smoke
 ```
 
-当前 smoke 路由包括 `/`、`/today`、`/activities`、`/activities/1001`、`/calendar`、`/trends`、`/training-load`、`/statistics`、`/records`、`/schema`。
+当前 smoke 路由包括 `/`、`/login`、`/register`、`/today`、`/activities`、`/activities/1001`、`/calendar`、`/trends`、`/training-load`、`/statistics`、`/records`、`/schema`。
 
 ## 环境变量
 
@@ -102,6 +104,7 @@ VITE_USE_MOCK=false
 
 当前已接入或预留的主要接口：
 
+- `POST /auth/register`
 - `GET /activities?page=1&page_size=50`
 - `GET /activities/:id`
 - `GET /activities/:id/track-points?limit=1000&offset=0`
@@ -119,6 +122,7 @@ VITE_USE_MOCK=false
 - `GET /stats/personal-bests`
 - `GET /training/load-balance`
 - `POST /auth/login`
+- `GET /auth/me`
 - `POST /manual-activities`
 - `GET /manual-activities/:id`
 - `PUT /manual-activities/:id`
@@ -126,6 +130,14 @@ VITE_USE_MOCK=false
 - `POST /ml/running-prediction`
 
 同步中心、探索、运动圈、天气、健康指标和设置页当前为前端合成样例或本地状态；后续如后端提供真实接口，可继续在 `src/services` 中接入。
+
+## 登录与权限
+
+- 前端采用登录后全站访问：除 `/login`、`/register` 外，所有业务页面都设置路由守卫。
+- 未登录访问业务页面会跳转到 `/login?redirect=<原路径>`；登录或注册成功后只允许跳回站内相对路径，避免开放重定向。
+- token 默认保存在 `localStorage` 的 `motion-analysis-token`，用于刷新后保持登录；前端不会保存密码。
+- axios 请求会自动附加 `Authorization: Bearer <token>`；后端返回 `AUTH_REQUIRED` 或 `INVALID_TOKEN` 时会清除 token 并回到登录页。
+- 注册、登录、当前用户信息对应后端 `/auth/register`、`/auth/login`、`/auth/me`。
 
 ## Nginx + Express 部署对接
 

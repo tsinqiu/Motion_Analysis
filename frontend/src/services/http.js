@@ -1,6 +1,7 @@
 import axios from 'axios'
 
 const TOKEN_STORAGE_KEY = 'motion-analysis-token'
+let authFailureHandler = null
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
@@ -23,12 +24,25 @@ apiClient.interceptors.response.use(
       const normalizedError = new Error(backendError.message)
       normalizedError.code = backendError.code
       normalizedError.status = error.response.status
+      if (
+        normalizedError.status === 401
+        && ['AUTH_REQUIRED', 'INVALID_TOKEN'].includes(normalizedError.code)
+      ) {
+        clearAuthToken()
+        if (typeof authFailureHandler === 'function') {
+          authFailureHandler(normalizedError)
+        }
+      }
       return Promise.reject(normalizedError)
     }
 
     return Promise.reject(error)
   },
 )
+
+export function setAuthFailureHandler(handler) {
+  authFailureHandler = handler
+}
 
 export function useMockData() {
   return import.meta.env.VITE_USE_MOCK !== 'false'
