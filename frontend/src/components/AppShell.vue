@@ -42,7 +42,7 @@
       </header>
 
       <main class="page-frame">
-        <ApiModeBanner />
+        <ApiModeBanner v-if="!route.meta.hideApiBanner" />
         <RouterView />
         <footer class="app-footer">
           <span>Garmin 运动数据分析数据库管理系统前端</span>

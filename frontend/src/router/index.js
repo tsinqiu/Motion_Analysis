@@ -97,7 +97,7 @@ const routes = [
     path: '/sync',
     name: 'sync',
     component: Sync,
-    meta: { title: '同步', requiresAuth: true },
+    meta: { title: '同步', requiresAuth: true, hideApiBanner: true },
   },
   {
     path: '/explore',

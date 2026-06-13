@@ -180,41 +180,41 @@ STATS_CACHE_TTL_SECONDS=60
 
 手动上传、修改、删除活动后会清空统计缓存，避免用户写入后长时间看到旧统计。`GET /api/health` 会返回统计缓存是否启用、TTL 和当前缓存条目数。
 
-## Garmin 同步和部署注意事项
+  ## Garmin 同步和部署注意事项
 
-Garmin 同步绑定到当前已登录的系统用户。系统用户存储在当前环境的 `Users` 表中；如果云端使用单独数据库，本地注册的系统账号不会自动出现在云端，除非迁移数据库。
+  Garmin 同步绑定到当前已登录的系统用户。系统用户存储在当前环境的 `Users` 表中；如果云端使用单独数据库，本地注册的系统账号不会自动出现在云端，除非迁移数据库。
 
-Garmin 绑定状态存储在 `SyncProviderConnections`。Garmin 密码不会入库，只在 `POST /api/sync/providers/garmin/authorize` 绑定时用于生成 Garmin token 文件。
+  Garmin 绑定状态存储在 `SyncProviderConnections`。Garmin 密码不会入库，只在 `POST /api/sync/providers/garmin/authorize` 绑定时用于生成 Garmin token 文件。
 
-相关接口：
+  相关接口：
 
-```text
-GET  /api/sync/providers/garmin/account
-POST /api/sync/providers/garmin/authorize
-POST /api/sync/jobs
-GET  /api/sync/jobs
-GET  /api/sync/logs
-```
+  ```text
+  GET  /api/sync/providers/garmin/account
+  POST /api/sync/providers/garmin/authorize
+  POST /api/sync/jobs
+  GET  /api/sync/jobs
+  GET  /api/sync/logs
+  ```
 
-同步会检查当年 3 月 1 日到今天的 Garmin 活动，跳过 `Activities.garmin_activity_id` 已存在的记录，只导入新运动，并把新运动归属到当前系统用户。
+  同步会检查当年 3 月 1 日到今天的 Garmin 活动，跳过 `Activities.garmin_activity_id` 已存在的记录，只导入新运动，并把新运动归属到当前系统用户。
 
-本地或云端启用同步前需要：
+  本地或云端启用同步前需要：
 
-```text
-source database/sql/06_extension_modules.sql;
-python -m pip install -r database/requirements.txt
-```
+  ```text
+  source database/sql/06_extension_modules.sql;
+  python -m pip install -r database/requirements.txt
+  ```
 
-生产环境建议配置持久、可写目录，不要依赖项目目录可写：
+  生产环境建议配置持久、可写目录，不要依赖项目目录可写：
 
-```text
-GARMIN_TOKEN_BASE_DIR=/var/lib/motion-analysis/garmin_tokens/users
-GARMIN_SYNC_WORK_DIR=/var/lib/motion-analysis/garmin_sync
-GARMIN_DOWNLOAD_SCRIPT=/var/www/motion-analysis/database/scripts/download_garmin_connect.py
-GARMIN_IMPORT_SCRIPT=/var/www/motion-analysis/database/scripts/import_fit_files.py
-```
+  ```text
+  GARMIN_TOKEN_BASE_DIR=/var/lib/motion-analysis/garmin_tokens/users
+  GARMIN_SYNC_WORK_DIR=/var/lib/motion-analysis/garmin_sync
+  GARMIN_DOWNLOAD_SCRIPT=/var/www/motion-analysis/database/scripts/download_garmin_connect.py
+  GARMIN_IMPORT_SCRIPT=/var/www/motion-analysis/database/scripts/import_fit_files.py
+  ```
 
-同一个 Garmin 账号可以在本地和云端分别绑定，因为数据库和 token 目录是两套。不要让本地和云端频繁同时同步同一个 Garmin 账号，Garmin 可能会限流。
+  同一个 Garmin 账号可以在本地和云端分别绑定，因为数据库和 token 目录是两套。不要让本地和云端频繁同时同步同一个 Garmin 账号，Garmin 可能会限流。
 
 ## Running 模型拓展
 
