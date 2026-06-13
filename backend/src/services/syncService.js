@@ -89,9 +89,12 @@ function getTodayText() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getCurrentYearMarchStart() {
-  const year = new Date().getFullYear();
-  return `${year}-03-01`;
+function isDateText(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function latestDateText(values) {
+  return values.filter(isDateText).sort().at(-1) || null;
 }
 
 function assertCredential(value, name) {
@@ -342,6 +345,43 @@ async function getExistingGarminIds(startDate) {
   return rows.map((row) => String(row.garminActivityId)).filter(Boolean);
 }
 
+async function getGarminIncrementalStartDate(user) {
+  const [connectionRows, activityRows] = await Promise.all([
+    db.query(
+      `
+        SELECT DATE_FORMAT(last_sync_at, '%Y-%m-%d') AS lastSyncDate
+        FROM SyncProviderConnections
+        WHERE user_id = ? AND provider = 'garmin' AND status = 'connected'
+        LIMIT 1
+      `,
+      [user.id]
+    ),
+    db.query(
+      `
+        SELECT DATE_FORMAT(MAX(COALESCE(local_start_time, start_time_utc)), '%Y-%m-%d') AS latestActivityDate
+        FROM Activities
+        WHERE owner_user_id = ?
+          AND garmin_activity_id IS NOT NULL
+      `,
+      [user.id]
+    )
+  ]);
+
+  const today = getTodayText();
+  const startDate = latestDateText([
+    connectionRows[0]?.lastSyncDate,
+    activityRows[0]?.latestActivityDate
+  ]);
+
+  if (!startDate) {
+    return null;
+  }
+  if (startDate > today) {
+    return today;
+  }
+  return startDate;
+}
+
 async function getGarminAccount(user) {
   const rows = await db.query(
     `
@@ -375,8 +415,18 @@ async function runGarminSync(jobId, user, payload) {
     throw new ApiError(400, 'garmin account is not connected', 'GARMIN_ACCOUNT_NOT_CONNECTED');
   }
 
-  const startDate = payload.startDate || getCurrentYearMarchStart();
+  const startDate = payload.startDate || await getGarminIncrementalStartDate(user);
   const endDate = payload.endDate || getTodayText();
+  if (!startDate) {
+    await addLog(jobId, user, 'garmin', 'info', 'no local Garmin sync history found; sync completed without scanning remote activities');
+    return {
+      importedCount: 0,
+      startDate: null,
+      endDate,
+      summary: { skipped: true, reason: 'no_local_sync_history' }
+    };
+  }
+
   const jobDir = path.join(config.garmin.syncWorkDir, `user-${user.id}`, `job-${jobId}`);
   const knownIdsPath = path.join(jobDir, 'known_ids.json');
   const summaryPath = path.join(jobDir, 'download_summary.json');
@@ -746,5 +796,10 @@ module.exports = {
   disconnectProvider,
   createJob,
   listJobs,
-  listLogs
+  listLogs,
+  _private: {
+    getGarminIncrementalStartDate,
+    latestDateText,
+    runGarminSync
+  }
 };

@@ -75,10 +75,10 @@ npm run smoke
 
 ```text
 VITE_API_BASE_URL=http://localhost:8080/api
-VITE_USE_MOCK=true
+VITE_USE_MOCK=false
 ```
 
-`VITE_USE_MOCK=true` 时使用 `src/mock` 中的合成运动数据；设置为 `false` 时通过 `src/services` 调用后端 API。
+默认不启用 mock，会通过 `src/services` 调用后端 API。只有显式设置 `VITE_USE_MOCK=true` 时，才使用 `src/mock` 中的合成运动数据。
 本地联调远程后端时可把 `VITE_API_BASE_URL=/api`，再用 `VITE_DEV_PROXY_TARGET` 指向后端站点，由 Vite 代理 `/api` 避免浏览器 CORS。
 
 生产部署到 Nginx 同源环境时推荐使用：

@@ -17,6 +17,8 @@ database/
     03_queries.sql
     04_auth_manual_upload.sql
     05_performance_indexes.sql
+    06_extension_modules.sql
+    07_profile_follow_explore_uploads.sql
 ```
 
 本地生成但不提交的路径：
@@ -79,6 +81,26 @@ npm run seed:admin
 ```sql
 source database/sql/05_performance_indexes.sql;
 ```
+
+同步、设置、运动圈、探索上传和用户资料字段依赖后续扩展脚本：
+
+```sql
+source database/sql/06_extension_modules.sql;
+source database/sql/07_profile_follow_explore_uploads.sql;
+```
+
+这些扩展脚本会用 `INFORMATION_SCHEMA` 检查字段、索引或约束是否存在，重复执行时 MySQL 可能输出 `1`，表示该项已经存在，不是错误。
+
+## Garmin 同步脚本环境
+
+`scripts/download_garmin_connect.py` 会登录 Garmin Connect 拉取远端活动，`scripts/import_fit_files.py` 负责把下载到的 FIT/JSON 转成导入 SQL。运行 Garmin 同步前需要安装 Python 依赖：
+
+```bash
+python3.11 -m pip install -r database/requirements.txt
+python3.11 database/scripts/download_garmin_connect.py --help
+```
+
+生产环境建议使用 Python 3.10+，优先使用 Python 3.11。如果服务器默认 `python3` 是 Python 3.6 或更低，脚本会因为 `from __future__ import annotations` 报错，并且 `garminconnect>=0.3.5` 也可能无法安装。
 
 ## 数据库名
 

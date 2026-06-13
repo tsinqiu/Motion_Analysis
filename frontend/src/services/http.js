@@ -45,7 +45,7 @@ export function setAuthFailureHandler(handler) {
 }
 
 export function useMockData() {
-  return import.meta.env.VITE_USE_MOCK !== 'false'
+  return import.meta.env.VITE_USE_MOCK === 'true'
 }
 
 export function unwrapApiResponse(payload) {

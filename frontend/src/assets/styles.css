@@ -299,6 +299,10 @@ a {
   color: var(--muted);
 }
 
+.good-text {
+  color: var(--green);
+}
+
 .success-copy {
   color: var(--green);
 }
@@ -1741,6 +1745,267 @@ html[data-theme="night"] .input-with-icon {
   margin-left: auto;
 }
 
+.sync-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.sync-hero {
+  min-height: 184px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid rgb(33 212 123 / 0.28);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.sync-brand,
+.sync-account-card,
+.sync-status-line,
+.sync-card-title,
+.sync-form-title,
+.sync-actions {
+  display: flex;
+  align-items: center;
+}
+
+.sync-brand {
+  gap: 16px;
+}
+
+.sync-brand h2 {
+  margin: 6px 0;
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.sync-brand p:not(.overline) {
+  margin: 0;
+  max-width: 620px;
+  color: var(--muted);
+}
+
+.garmin-mark,
+.garmin-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: var(--radius);
+  font-weight: 900;
+}
+
+.garmin-mark {
+  width: 62px;
+  height: 62px;
+  object-fit: cover;
+  background: #07130e;
+  box-shadow: 0 14px 34px rgb(33 212 123 / 0.22);
+}
+
+.garmin-mark.small {
+  width: 42px;
+  height: 42px;
+}
+
+.garmin-avatar {
+  width: 48px;
+  height: 48px;
+  background: rgb(33 212 123 / 0.14);
+  border: 1px solid rgb(33 212 123 / 0.32);
+  color: var(--green);
+}
+
+.sync-account-card {
+  min-width: min(360px, 100%);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+}
+
+.sync-account-card div:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.sync-account-card strong,
+.sync-account-card span:not(.status-chip) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-account-card span:not(.status-chip),
+.sync-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sync-account-card .status-chip {
+  margin-left: auto;
+}
+
+.sync-toast {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgb(33 212 123 / 0.26);
+  border-radius: var(--radius);
+  background: rgb(33 212 123 / 0.1);
+}
+
+.sync-status-card,
+.sync-list-card {
+  box-shadow: none;
+}
+
+.sync-card-title,
+.sync-form-title {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.sync-card-title h2,
+.sync-form-title h2 {
+  margin: 5px 0 0;
+}
+
+.sync-status-line {
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+}
+
+.sync-status-line div:last-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sync-status-line span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.sync-actions {
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.sync-toggle {
+  padding: 10px 0;
+}
+
+.sync-submit {
+  width: 100%;
+  min-height: 42px;
+}
+
+.sync-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sync-event-list {
+  display: grid;
+  gap: 8px;
+}
+
+.sync-event-list.compact {
+  gap: 7px;
+}
+
+.sync-event-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+}
+
+.sync-event-icon,
+.sync-event-dot {
+  flex: 0 0 auto;
+}
+
+.sync-event-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: rgb(148 163 184 / 0.12);
+  color: var(--muted);
+}
+
+.sync-event-icon.success {
+  color: var(--green);
+  background: rgb(33 212 123 / 0.12);
+}
+
+.sync-event-icon.failed {
+  color: var(--red);
+  background: rgb(239 68 68 / 0.12);
+}
+
+.sync-event-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--blue);
+}
+
+.sync-event-dot.warn {
+  background: var(--yellow);
+}
+
+.sync-event-dot.error {
+  background: var(--red);
+}
+
+.sync-event-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.sync-event-main strong,
+.sync-event-main span,
+.sync-event-main small {
+  overflow-wrap: anywhere;
+}
+
+.sync-event-main span,
+.sync-event-main small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sync-event-main small {
+  color: var(--faint);
+}
+
+.garmin-form {
+  display: grid;
+  gap: 14px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1788,6 +2053,8 @@ html[data-theme="night"] .input-with-icon {
   .settings-grid,
   .admin-user-form,
   .explore-upload-form,
+  .sync-layout,
+  .sync-list-grid,
   .metric-picker {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1816,7 +2083,8 @@ html[data-theme="night"] .input-with-icon {
   .app-hero,
   .hero-panel,
   .section-heading,
-  .panel-heading {
+  .panel-heading,
+  .sync-hero {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -1824,6 +2092,18 @@ html[data-theme="night"] .input-with-icon {
   .app-hero h2,
   .hero-panel h2 {
     font-size: 28px;
+  }
+
+  .sync-brand {
+    align-items: flex-start;
+  }
+
+  .sync-brand h2 {
+    font-size: 26px;
+  }
+
+  .sync-account-card {
+    width: 100%;
   }
 
   .today-layout,
@@ -1839,6 +2119,8 @@ html[data-theme="night"] .input-with-icon {
   .records-grid,
   .sport-start-grid,
   .settings-grid,
+  .sync-layout,
+  .sync-list-grid,
   .metric-picker,
   .training-targets,
   .state-metrics,

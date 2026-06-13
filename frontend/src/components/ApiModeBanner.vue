@@ -8,7 +8,7 @@
 </template>
 
 <script setup>
-const isMock = import.meta.env.VITE_USE_MOCK !== 'false'
+const isMock = import.meta.env.VITE_USE_MOCK === 'true'
 const message = isMock
   ? '当前页面使用演示运动数据。'
   : '当前页面使用已保存的运动数据。'

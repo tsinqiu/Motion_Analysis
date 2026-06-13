@@ -3,6 +3,9 @@ const dotenv = require('dotenv');
 
 dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 
+const BACKEND_ROOT = path.resolve(__dirname, '..');
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
+
 function parseInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -10,9 +13,10 @@ function parseInteger(value, fallback) {
 
 function parseCorsOrigins(value, serverPort) {
   const localApiOrigins = [`http://127.0.0.1:${serverPort}`, `http://localhost:${serverPort}`];
+  const localFrontendOrigins = ['http://127.0.0.1:5173', 'http://localhost:5173'];
 
   if (!value) {
-    return ['http://localhost:5173', ...localApiOrigins];
+    return [...localFrontendOrigins, ...localApiOrigins];
   }
 
   return [
@@ -20,6 +24,7 @@ function parseCorsOrigins(value, serverPort) {
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean),
+    ...localFrontendOrigins,
     ...localApiOrigins
   ];
 }
@@ -29,7 +34,7 @@ function resolveBackendPath(value, fallback) {
   if (path.isAbsolute(target)) {
     return target;
   }
-  return path.resolve(__dirname, '..', target);
+  return path.resolve(BACKEND_ROOT, target);
 }
 
 function resolveProjectPath(value, fallback) {
@@ -37,7 +42,10 @@ function resolveProjectPath(value, fallback) {
   if (path.isAbsolute(target)) {
     return target;
   }
-  return path.resolve(__dirname, '..', '..', target);
+  if (value && target.startsWith('..')) {
+    return path.resolve(BACKEND_ROOT, target);
+  }
+  return path.resolve(PROJECT_ROOT, target);
 }
 
 const serverPort = parseInteger(process.env.PORT, 8080);

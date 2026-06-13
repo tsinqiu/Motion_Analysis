@@ -5,6 +5,7 @@ const createApp = require('../src/app');
 const db = require('../src/db');
 const statsCache = require('../src/cache/statsCache');
 const activityServiceModule = require('../src/services/activityService');
+const syncServiceModule = require('../src/services/syncService');
 const workoutServiceModule = require('../src/services/workoutService');
 
 function buildApp(overrides = {}) {
@@ -1695,6 +1696,87 @@ test('workoutService finish writes activity summary and track points', async () 
     assert.ok(writes.some((entry) => entry.sql.includes("data_source, is_manual, match_status")));
   } finally {
     db.transaction = originalTransaction;
+    db.query = originalQuery;
+  }
+});
+
+test('syncService Garmin incremental start prefers last sync date', async () => {
+  const originalQuery = db.query;
+  db.query = async (sql) => {
+    if (sql.includes('DATE_FORMAT(last_sync_at')) {
+      return [{ lastSyncDate: '2026-06-10' }];
+    }
+    if (sql.includes('MAX(COALESCE(local_start_time, start_time_utc))')) {
+      return [{ latestActivityDate: '2026-06-08' }];
+    }
+    return [];
+  };
+
+  try {
+    const startDate = await syncServiceModule._private.getGarminIncrementalStartDate({ id: 2 });
+
+    assert.equal(startDate, '2026-06-10');
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
+test('syncService Garmin incremental start falls back to latest local Garmin activity', async () => {
+  const originalQuery = db.query;
+  db.query = async (sql) => {
+    if (sql.includes('DATE_FORMAT(last_sync_at')) {
+      return [{ lastSyncDate: null }];
+    }
+    if (sql.includes('MAX(COALESCE(local_start_time, start_time_utc))')) {
+      return [{ latestActivityDate: '2026-06-12' }];
+    }
+    return [];
+  };
+
+  try {
+    const startDate = await syncServiceModule._private.getGarminIncrementalStartDate({ id: 2 });
+
+    assert.equal(startDate, '2026-06-12');
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
+test('syncService Garmin sync skips remote scan when no local Garmin history exists', async () => {
+  const originalQuery = db.query;
+  const logs = [];
+
+  db.query = async (sql, params = []) => {
+    if (sql.includes('last_sync_at AS lastSyncAt')) {
+      return [{
+        status: 'connected',
+        lastSyncAt: null,
+        connectedAt: '2026-06-10 10:00:00.000',
+        rawJson: JSON.stringify({ email: 'runner@example.com', isCn: false })
+      }];
+    }
+    if (sql.includes('DATE_FORMAT(last_sync_at')) {
+      return [{ lastSyncDate: null }];
+    }
+    if (sql.includes('MAX(COALESCE(local_start_time, start_time_utc))')) {
+      return [{ latestActivityDate: null }];
+    }
+    if (sql.includes('INSERT INTO SyncLogs')) {
+      logs.push({ sql, params });
+      return { affectedRows: 1 };
+    }
+    return [];
+  };
+
+  try {
+    const result = await syncServiceModule._private.runGarminSync(99, { id: 2 }, {});
+
+    assert.equal(result.importedCount, 0);
+    assert.equal(result.startDate, null);
+    assert.deepEqual(result.summary, { skipped: true, reason: 'no_local_sync_history' });
+    assert.equal(logs.length, 1);
+    assert.match(logs[0].params[4], /no local Garmin sync history/);
+  } finally {
     db.query = originalQuery;
   }
 });
