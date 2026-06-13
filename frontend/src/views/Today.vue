@@ -76,7 +76,7 @@
         </div>
         <div class="activity-card-grid">
           <ActivityCard
-            v-for="activity in overview.recentActivities"
+            v-for="activity in recentActivities"
             :key="activity.id"
             :activity="activity"
             @select="router.push(`/activities/${activity.id}`)"
@@ -110,4 +110,5 @@ const { data: overview, error, load, loading } = useAsyncData(getDashboardOvervi
   trainingLoad: [],
 })
 const latestLoad = computed(() => overview.value?.trainingLoad?.at(-1) || {})
+const recentActivities = computed(() => (overview.value?.recentActivities || []).slice(0, 6))
 </script>

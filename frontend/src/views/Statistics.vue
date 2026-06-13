@@ -30,18 +30,61 @@
       </div>
       <ChartPanel title="周期柱状统计" eyebrow="运动统计" :option="barOption" />
       <ChartPanel title="运动类型占比" eyebrow="运动统计" :option="typeOption" />
+      <section class="panel achievement-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="overline">Achievements</p>
+            <h2>成就统计</h2>
+          </div>
+        </div>
+        <div class="achievement-grid">
+          <article class="record-group">
+            <h3>跑步成就</h3>
+            <div class="achievement-list">
+              <button
+                v-for="item in runningAchievements"
+                :key="item.key"
+                type="button"
+                :disabled="!item.activityId"
+                @click="goToActivity(item)"
+              >
+                <span>{{ item.label }}</span>
+                <strong>{{ formatAchievementValue(item) }}</strong>
+                <small>{{ item.date || '--' }}</small>
+              </button>
+            </div>
+          </article>
+          <article class="record-group">
+            <h3>骑行成就</h3>
+            <div class="achievement-list">
+              <button
+                v-for="item in cyclingAchievements"
+                :key="item.key"
+                type="button"
+                :disabled="!item.activityId"
+                @click="goToActivity(item)"
+              >
+                <span>{{ item.label }}</span>
+                <strong>{{ formatAchievementValue(item) }}</strong>
+                <small>{{ item.date || '--' }}</small>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
     </template>
   </div>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import ChartPanel from '@/components/ChartPanel.vue'
 import MetricCard from '@/components/MetricCard.vue'
 import StateBlock from '@/components/StateBlock.vue'
-import { getActivityTypeStats, getSummaryStats, getTimelineStats } from '@/services/stats'
-import { formatCalories, formatClockDuration, formatDistance, formatFatKg } from '@/utils/formatters'
+import { getActivityTypeStats, getPersonalBests, getSummaryStats, getTimelineStats } from '@/services/stats'
+import { formatCalories, formatClockDuration, formatDistance, formatFatKg, formatPaceSeconds } from '@/utils/formatters'
 
 const tabs = [
   { label: '按月', value: 'month' },
@@ -49,35 +92,50 @@ const tabs = [
   { label: '全部', value: 'all' },
 ]
 
+const router = useRouter()
 const mode = ref('month')
 const selected = ref('2026-06')
 const summary = ref({})
 const timeline = ref([])
 const typeStats = ref([])
+const personalBests = ref({ running: [], cycling: [] })
 const error = ref('')
 const loading = ref(false)
 
 const selectedLabel = computed(() => (mode.value === 'year' ? selected.value.slice(0, 4) : selected.value))
+const runningAchievementKeys = ['longest_distance', 'fastest_5k', 'fastest_10k', 'fastest_half_marathon', 'fastest_marathon']
+const cyclingAchievementKeys = ['longest_distance', 'fastest_avg_speed', 'highest_elevation_gain', 'highest_training_load']
+const runningAchievements = computed(() => pickAchievements(personalBests.value.running, runningAchievementKeys))
+const cyclingAchievements = computed(() => pickAchievements(personalBests.value.cycling, cyclingAchievementKeys))
 
 const barOption = computed(() => ({
   color: ['#ef4444', '#21d47b', '#ff9d19', '#33b5ff'],
   tooltip: { trigger: 'axis' },
   legend: { top: 0, textStyle: { color: '#9ca3af' } },
-  grid: { left: 52, right: 22, top: 46, bottom: 36 },
+  grid: { left: 58, right: 62, top: 46, bottom: 36, containLabel: true },
   xAxis: {
     type: 'category',
     data: timeline.value.map((row) => row.period),
     axisLine: { lineStyle: { color: '#334155' } },
     axisLabel: { color: '#9ca3af' },
   },
-  yAxis: {
-    type: 'value',
-    axisLabel: { color: '#9ca3af' },
-    splitLine: { lineStyle: { color: '#1f2937' } },
-  },
+  yAxis: [
+    {
+      type: 'value',
+      name: '距离 km',
+      axisLabel: { color: '#9ca3af' },
+      splitLine: { lineStyle: { color: '#1f2937' } },
+    },
+    {
+      type: 'value',
+      name: '卡路里',
+      axisLabel: { color: '#9ca3af' },
+      splitLine: { show: false },
+    },
+  ],
   series: [
-    { name: '距离 km', type: 'bar', data: timeline.value.map((row) => Number(row.totalDistanceKm || 0).toFixed(2)) },
-    { name: '卡路里', type: 'bar', data: timeline.value.map((row) => row.totalCalories || 0) },
+    { name: '距离 km', type: 'bar', yAxisIndex: 0, data: timeline.value.map((row) => Number(row.totalDistanceKm || 0).toFixed(2)) },
+    { name: '卡路里', type: 'bar', yAxisIndex: 1, data: timeline.value.map((row) => row.totalCalories || 0) },
   ],
 }))
 
@@ -106,19 +164,63 @@ function stepDate(offset) {
   selected.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
+function pickAchievements(items = [], keys = []) {
+  const byKey = new Map((items || []).map((item) => [item.key, item]))
+  return keys.map((key) => byKey.get(key) || {
+    key,
+    label: achievementFallbackLabel(key),
+    value: null,
+    unit: '',
+  })
+}
+
+function achievementFallbackLabel(key) {
+  const labels = {
+    longest_distance: '最长距离',
+    fastest_5k: '5km PB',
+    fastest_10k: '10km PB',
+    fastest_half_marathon: '半马 PB',
+    fastest_marathon: '全马 PB',
+    fastest_avg_speed: '最快均速',
+    highest_elevation_gain: '最大爬升',
+    highest_training_load: '最高训练负荷',
+  }
+  return labels[key] || key
+}
+
+function formatAchievementValue(item) {
+  if (item.value === null || item.value === undefined) return '--'
+  const value = Number(item.value)
+  if (!Number.isFinite(value)) return '--'
+  if (item.unit === 'km') return `${value.toFixed(2)} km`
+  if (item.unit === 'sec/km') return formatPaceSeconds(value)
+  if (item.unit === 'km/h') return `${value.toFixed(1)} km/h`
+  if (item.unit === 'm') return `${value.toFixed(0)} m`
+  if (item.unit === 'load') return value.toFixed(1)
+  return `${value.toLocaleString('zh-CN')} ${item.unit || ''}`.trim()
+}
+
+function goToActivity(item) {
+  if (item.activityId) {
+    router.push(`/activities/${item.activityId}`)
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
   try {
     const date = mode.value === 'year' ? selected.value.slice(0, 4) : selected.value
-    const [nextSummary, nextTimeline, nextTypes] = await Promise.all([
+    const [nextSummary, nextTimeline, nextTypes, nextPersonalBests] = await Promise.all([
       getSummaryStats({ range: mode.value, date }),
       getTimelineStats({ group_by: mode.value === 'month' ? 'day' : 'month', range: mode.value, date }),
       getActivityTypeStats({ range: mode.value, date }),
+      getPersonalBests({ range: mode.value, date }),
     ])
     summary.value = nextSummary || {}
     timeline.value = nextTimeline || []
     typeStats.value = nextTypes || []
+    personalBests.value = nextPersonalBests || { running: [], cycling: [] }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '统计加载失败'
   } finally {

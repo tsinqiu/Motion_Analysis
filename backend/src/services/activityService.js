@@ -1063,10 +1063,10 @@ async function getDashboardOverview(filters = {}) {
   const year = today.slice(0, 4);
   const recentActivities = await listActivities({
     ...filters,
-    limit: 5,
+    limit: 6,
     offset: 0,
     page: 1,
-    pageSize: 5,
+    pageSize: 6,
     sortBy: 'local_start_time',
     sortOrder: 'desc'
   });

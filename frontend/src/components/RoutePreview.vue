@@ -5,24 +5,22 @@
         <p class="overline">TrackPoints</p>
         <h2>地图轨迹预览</h2>
       </div>
-      <span>{{ points.length }} 点</span>
+      <span>{{ validPoints.length }} 点</span>
     </div>
 
-    <div class="route-map" aria-label="轨迹地图预览">
-      <div class="route-grid"></div>
-      <div class="route-line"></div>
-      <span
-        v-for="(point, index) in plottedPoints"
-        :key="index"
-        class="route-point"
-        :style="{ left: `${point.x}%`, top: `${point.y}%` }"
-      ></span>
+    <div v-if="validPoints.length" ref="mapRef" class="route-map" aria-label="轨迹地图预览"></div>
+    <div v-else class="route-map route-map-empty" aria-label="轨迹地图预览为空">
+      <strong>暂无可用地图轨迹</strong>
+      <span>当前运动没有有效经纬度采样点。</span>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import 'leaflet/dist/leaflet.css'
+
+import L from 'leaflet'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   points: {
@@ -31,20 +29,238 @@ const props = defineProps({
   },
 })
 
-const plottedPoints = computed(() => {
-  const validPoints = props.points.filter((point) => point.latitude && point.longitude)
-  if (validPoints.length === 0) return []
+const mapRef = ref(null)
+let map = null
+let tileLayer = null
+let routeLayer = null
+let markerLayer = null
 
-  const latitudes = validPoints.map((point) => point.latitude)
-  const longitudes = validPoints.map((point) => point.longitude)
-  const minLat = Math.min(...latitudes)
-  const maxLat = Math.max(...latitudes)
-  const minLong = Math.min(...longitudes)
-  const maxLong = Math.max(...longitudes)
+const EARTH_RADIUS_M = 6371000
 
-  return validPoints.map((point) => ({
-    x: 8 + ((point.longitude - minLong) / Math.max(maxLong - minLong, 0.0001)) * 84,
-    y: 8 + (1 - (point.latitude - minLat) / Math.max(maxLat - minLat, 0.0001)) * 84,
-  }))
+function toCoordinate(value) {
+  if (value === null || value === undefined || value === '') return null
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
+function toDistance(value) {
+  if (value === null || value === undefined || value === '') return null
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null
+}
+
+function toRadians(value) {
+  return (value * Math.PI) / 180
+}
+
+function distanceBetween(a, b) {
+  const dLat = toRadians(b.latitude - a.latitude)
+  const dLon = toRadians(b.longitude - a.longitude)
+  const lat1 = toRadians(a.latitude)
+  const lat2 = toRadians(b.latitude)
+  const value = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2
+  return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value))
+}
+
+function interpolatePoint(before, after, targetDistanceM) {
+  const span = after.distanceM - before.distanceM
+  if (span <= 0) {
+    return { latitude: after.latitude, longitude: after.longitude }
+  }
+
+  const ratio = Math.min(Math.max((targetDistanceM - before.distanceM) / span, 0), 1)
+  return {
+    latitude: before.latitude + (after.latitude - before.latitude) * ratio,
+    longitude: before.longitude + (after.longitude - before.longitude) * ratio,
+  }
+}
+
+const validPoints = computed(() =>
+  props.points
+    .map((point) => {
+      const latitude = toCoordinate(point.latitude)
+      const longitude = toCoordinate(point.longitude)
+      const sourceDistanceM = toDistance(point.distance_m ?? point.distanceM)
+      return { latitude, longitude, sourceDistanceM }
+    })
+    .filter((point) =>
+      point.latitude !== null
+      && point.longitude !== null
+      && point.latitude >= -90
+      && point.latitude <= 90
+      && point.longitude >= -180
+      && point.longitude <= 180
+    )
+    .reduce((points, point, index) => {
+      const previous = points.at(-1)
+      const segmentDistanceM = previous
+        ? distanceBetween(previous, point)
+        : 0
+      const fallbackDistanceM = previous
+        ? previous.distanceM + segmentDistanceM
+        : 0
+      const previousDistanceM = previous?.distanceM ?? 0
+      const distanceM = point.sourceDistanceM !== null && point.sourceDistanceM >= previousDistanceM
+        ? point.sourceDistanceM
+        : fallbackDistanceM
+
+      points.push({
+        latitude: point.latitude,
+        longitude: point.longitude,
+        distanceM: index === 0 ? 0 : distanceM,
+      })
+      return points
+    }, []),
+)
+
+const latLngs = computed(() => validPoints.value.map((point) => [point.latitude, point.longitude]))
+
+const kilometerMarkers = computed(() => {
+  if (validPoints.value.length < 2) return []
+
+  const firstDistanceM = validPoints.value[0].distanceM
+  const lastDistanceM = validPoints.value.at(-1).distanceM
+  const totalDistanceM = lastDistanceM - firstDistanceM
+  const markerCount = Math.floor(totalDistanceM / 1000)
+  if (markerCount < 1) return []
+
+  const markers = []
+  let segmentIndex = 1
+
+  for (let kilometer = 1; kilometer <= markerCount; kilometer += 1) {
+    const targetDistanceM = firstDistanceM + kilometer * 1000
+    while (
+      segmentIndex < validPoints.value.length - 1
+      && validPoints.value[segmentIndex].distanceM < targetDistanceM
+    ) {
+      segmentIndex += 1
+    }
+
+    const before = validPoints.value[Math.max(segmentIndex - 1, 0)]
+    const after = validPoints.value[segmentIndex]
+    if (!before || !after || after.distanceM < targetDistanceM) continue
+
+    markers.push({
+      kilometer,
+      ...interpolatePoint(before, after, targetDistanceM),
+    })
+  }
+
+  return markers
+})
+
+function createEndpointIcon(label, tone) {
+  return L.divIcon({
+    className: `route-endpoint route-endpoint-${tone}`,
+    html: `<span>${label}</span>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  })
+}
+
+function createKilometerIcon(kilometer) {
+  const label = String(kilometer)
+  const size = label.length >= 3 ? 18 : 14
+  return L.divIcon({
+    className: 'route-km-marker',
+    html: `<span>${label}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  })
+}
+
+function ensureMap() {
+  if (!mapRef.value || map) return
+
+  map = L.map(mapRef.value, {
+    attributionControl: true,
+    scrollWheelZoom: true,
+    zoomControl: true,
+  })
+
+  tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors',
+  }).addTo(map)
+}
+
+function clearLayers() {
+  if (routeLayer) {
+    routeLayer.remove()
+    routeLayer = null
+  }
+  if (markerLayer) {
+    markerLayer.remove()
+    markerLayer = null
+  }
+}
+
+function destroyMap() {
+  clearLayers()
+  tileLayer?.remove()
+  tileLayer = null
+  map?.remove()
+  map = null
+}
+
+function renderRoute() {
+  if (!map || !latLngs.value.length) return
+
+  clearLayers()
+
+  routeLayer = L.polyline(latLngs.value, {
+    color: '#21d47b',
+    weight: 5,
+    opacity: 0.95,
+    lineCap: 'round',
+    lineJoin: 'round',
+  }).addTo(map)
+
+  const markers = []
+  const start = latLngs.value[0]
+  const end = latLngs.value.at(-1)
+  markers.push(L.marker(start, { icon: createEndpointIcon('起', 'start'), keyboard: false }))
+  for (const marker of kilometerMarkers.value) {
+    markers.push(L.marker(
+      [marker.latitude, marker.longitude],
+      {
+        icon: createKilometerIcon(marker.kilometer),
+        keyboard: false,
+        title: `${marker.kilometer} km`,
+        zIndexOffset: 300,
+      },
+    ))
+  }
+  if (end && (end[0] !== start[0] || end[1] !== start[1])) {
+    markers.push(L.marker(end, { icon: createEndpointIcon('终', 'finish'), keyboard: false }))
+  }
+  markerLayer = L.layerGroup(markers).addTo(map)
+
+  const bounds = L.latLngBounds(latLngs.value)
+  map.fitBounds(bounds, {
+    padding: [28, 28],
+    maxZoom: 17,
+  })
+  map.invalidateSize()
+}
+
+async function refreshMap() {
+  if (!validPoints.value.length) {
+    destroyMap()
+    return
+  }
+
+  await nextTick()
+  ensureMap()
+  renderRoute()
+}
+
+onMounted(refreshMap)
+
+watch(() => props.points, refreshMap, { deep: true })
+
+onBeforeUnmount(() => {
+  destroyMap()
 })
 </script>

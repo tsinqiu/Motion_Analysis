@@ -7,20 +7,35 @@
         </div>
         <strong class="avg-chip">平均 {{ averageValue }}</strong>
       </div>
-      <div class="checkbox-filter-grid">
-        <fieldset>
+      <div class="trend-filter-grid">
+        <fieldset class="trend-filter-group">
           <legend>时间范围</legend>
-          <label v-for="range in ranges" :key="range.value" class="checkbox-pill">
-            <input v-model="selectedRanges" type="checkbox" :value="range.value" />
+          <button
+            v-for="range in ranges"
+            :key="range.value"
+            type="button"
+            class="trend-filter-button"
+            :class="{ active: selectedRanges.includes(range.value) }"
+            @click="toggleRange(range.value)"
+          >
+            <component :is="range.icon" :size="17" />
             <span>{{ range.label }}</span>
-          </label>
+          </button>
         </fieldset>
-        <fieldset>
+        <fieldset class="trend-filter-group">
           <legend>运动类型</legend>
-          <label v-for="sport in sportFilters" :key="sport.value" class="checkbox-pill">
-            <input v-model="selectedTypes" type="checkbox" :value="sport.value" />
+          <button
+            v-for="sport in sportOptions"
+            :key="sport.value"
+            type="button"
+            class="trend-filter-button"
+            :class="{ active: selectedTypes.includes(sport.value) }"
+            :style="{ '--sport-color': sport.color }"
+            @click="toggleType(sport.value)"
+          >
+            <component :is="sport.icon" :size="17" />
             <span>{{ sport.label }}</span>
-          </label>
+          </button>
         </fieldset>
       </div>
     </section>
@@ -31,7 +46,7 @@
 
     <template v-else>
       <ChartPanel title="指标趋势" :eyebrow="activeMetric.label" :option="trendOption" />
-      <section class="metric-picker">
+      <section class="metric-picker five-up">
         <button
           v-for="metric in metrics"
           :key="metric.value"
@@ -51,7 +66,19 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Activity, Flame, Gauge, HeartPulse, Mountain } from '@lucide/vue'
+import {
+  Activity,
+  Bike,
+  CalendarDays,
+  CalendarRange,
+  Check,
+  Dumbbell,
+  Flame,
+  Gauge,
+  HeartPulse,
+  Mountain,
+  Waves,
+} from '@lucide/vue'
 
 import ChartPanel from '@/components/ChartPanel.vue'
 import StateBlock from '@/components/StateBlock.vue'
@@ -60,11 +87,11 @@ import { getMetricTrend } from '@/services/stats'
 import { formatDistance, formatPaceSeconds } from '@/utils/formatters'
 
 const ranges = [
-  { label: '42天', value: '42d' },
-  { label: '3个月', value: '3m' },
-  { label: '6个月', value: '6m' },
-  { label: '1年', value: '1y' },
-  { label: '2年', value: '2y' },
+  { label: '42天', value: '42d', icon: CalendarDays },
+  { label: '3个月', value: '3m', icon: CalendarRange },
+  { label: '6个月', value: '6m', icon: CalendarRange },
+  { label: '1年', value: '1y', icon: CalendarRange },
+  { label: '2年', value: '2y', icon: CalendarRange },
 ]
 
 const metrics = [
@@ -84,6 +111,21 @@ const trendSeries = ref([])
 const error = ref('')
 const loading = ref(false)
 
+const sportIcons = {
+  all: Check,
+  running: Activity,
+  cycling: Bike,
+  swimming: Waves,
+  strength_training: Dumbbell,
+  other: CalendarDays,
+}
+
+const sportOptions = computed(() =>
+  sportFilters.map((sport) => ({
+    ...sport,
+    icon: sportIcons[sport.value] || Activity,
+  })),
+)
 const activeMetric = computed(() => metrics.find((metric) => metric.value === filters.metric) || metrics[0])
 const allTrendRows = computed(() => trendSeries.value.flatMap((series) => series.rows || []))
 const averageValue = computed(() => {
@@ -121,16 +163,35 @@ const trendOption = computed(() => ({
   color: ['#21d47b', '#33b5ff', '#ff9d19', '#8b5cf6', '#ef4444', '#94a3b8'],
   tooltip: { trigger: 'axis', formatter: formatTooltip },
   legend: { top: 0, textStyle: { color: '#64748b' } },
-  grid: { left: 48, right: 24, top: 30, bottom: 42 },
+  grid: { left: 24, right: 24, top: 34, bottom: 42, containLabel: true },
   xAxis: {
     type: 'category',
     data: xAxisDates.value,
     axisLine: { lineStyle: { color: '#334155' } },
     axisLabel: { color: '#9ca3af' },
   },
+  dataZoom: [
+    {
+      type: 'inside',
+      xAxisIndex: 0,
+      filterMode: 'none',
+      zoomOnMouseWheel: true,
+      moveOnMouseMove: true,
+      moveOnMouseWheel: false,
+      preventDefaultMouseMove: true,
+    },
+  ],
   yAxis: {
     type: 'value',
-    axisLabel: { color: '#9ca3af', formatter: (value) => formatMetricValue(value) },
+    name: activeMetric.value.unit,
+    nameTextStyle: { color: '#9ca3af', padding: [0, 0, 0, 4] },
+    nameGap: 18,
+    axisLabel: {
+      color: '#9ca3af',
+      formatter: (value) => formatMetricValue(value),
+      hideOverlap: true,
+      margin: 12,
+    },
     splitLine: { lineStyle: { color: '#1f2937' } },
   },
   series: trendSeries.value.map((series) => ({
@@ -156,6 +217,25 @@ function normalizeSelections() {
   if (selectedTypes.value.includes('all') && selectedTypes.value.length > 1) {
     selectedTypes.value = selectedTypes.value.filter((value) => value !== 'all')
   }
+}
+
+function toggleRange(value) {
+  selectedRanges.value = selectedRanges.value.includes(value)
+    ? selectedRanges.value.filter((item) => item !== value)
+    : [...selectedRanges.value, value]
+  normalizeSelections()
+}
+
+function toggleType(value) {
+  if (value === 'all') {
+    selectedTypes.value = ['all']
+    return
+  }
+  const withoutAll = selectedTypes.value.filter((item) => item !== 'all')
+  selectedTypes.value = withoutAll.includes(value)
+    ? withoutAll.filter((item) => item !== value)
+    : [...withoutAll, value]
+  normalizeSelections()
 }
 
 async function load() {
