@@ -21,6 +21,7 @@
 
 - [x] 26.6.8-当前项目已完成 GitHub 仓库初始化，database方面MySQL数据库建立。
 - [x] 26.6.8-创建好了dev分支以及三个feature分支（frontend，backend，database）便于分工协作。
+- [x] 26.6.13-中间未保留记录，已完成主要的功能实现，并确定了main的稳定版本V1.0
 
 
 
