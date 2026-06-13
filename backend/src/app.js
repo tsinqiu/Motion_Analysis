@@ -43,7 +43,7 @@ function createApp({
     })
   );
   app.use(express.json());
-
+  
   app.use('/api', createAuthRouter(authService));
   app.use('/api', createHealthRouter(healthService));
   app.use('/api', createActivityRouter(activityService, authService));

@@ -22,6 +22,13 @@ function parseBoolean(value, name) {
   return value;
 }
 
+function parseOptionalBoolean(value, name) {
+  if (value === undefined) {
+    return undefined;
+  }
+  return parseBoolean(value, name);
+}
+
 function parsePaging(query, fallback = 20, max = 100) {
   const page = parsePage(query.page);
   const pageSize = parsePageSize(query.page_size, fallback, max);
@@ -57,7 +64,21 @@ function createSyncRouter({ syncService = defaultSyncService, authService = defa
     '/sync/providers/:provider/authorize',
     requireAuth,
     asyncHandler(async (req, res) => {
-      sendData(res, await syncService.authorizeProvider(parseProvider(req.params.provider), req.user));
+      const payload = {
+        email: req.body.email,
+        password: req.body.password,
+        mfaCode: req.body.mfaCode,
+        isCn: parseOptionalBoolean(req.body.isCn, 'isCn')
+      };
+      sendData(res, await syncService.authorizeProvider(parseProvider(req.params.provider), req.user, payload));
+    })
+  );
+
+  router.get(
+    '/sync/providers/:provider/account',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      sendData(res, await syncService.getProviderAccount(parseProvider(req.params.provider), req.user));
     })
   );
 

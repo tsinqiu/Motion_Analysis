@@ -218,19 +218,84 @@ Returns recent activities, monthly summary, yearly summary, recent training load
 
 ## Extension Modules
 
-These modules persist real backend state but do not call third-party provider APIs yet. Garmin, Strava, COROS, and Apple Health adapters currently return `adapterStatus="not_configured"` and do not import fake activities.
+These modules persist real backend state. Garmin Connect sync is implemented;
+Strava, COROS, and Apple Health remain placeholder providers and return
+`adapterStatus="not_configured"`.
 
 Sync APIs require login:
 
 ```text
 GET  /api/sync/providers
 PUT  /api/sync/providers/:provider/settings
+GET  /api/sync/providers/:provider/account
 POST /api/sync/providers/:provider/authorize
 POST /api/sync/providers/:provider/disconnect
 POST /api/sync/jobs
 GET  /api/sync/jobs?page=1&page_size=20
 GET  /api/sync/logs?page=1&page_size=20
 ```
+
+Garmin account status:
+
+```http
+GET /api/sync/providers/garmin/account
+Authorization: Bearer <token>
+```
+
+Example response:
+
+```json
+{
+  "data": {
+    "provider": "garmin",
+    "exists": true,
+    "status": "connected",
+    "email": "runner@example.com",
+    "isCn": false,
+    "lastSyncAt": "2026-06-13 16:12:10.263",
+    "connectedAt": "2026-06-13 16:08:00.000"
+  },
+  "meta": {}
+}
+```
+
+Bind Garmin to the currently logged-in app user:
+
+```http
+POST /api/sync/providers/garmin/authorize
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "email": "runner@example.com",
+  "password": "garmin-password",
+  "mfaCode": "123456",
+  "isCn": false
+}
+```
+
+`mfaCode` is only required when Garmin asks for MFA. The backend does not store
+the Garmin password; it stores connection state in `SyncProviderConnections` and
+Garmin token files in the configured token directory.
+
+Start a Garmin sync:
+
+```http
+POST /api/sync/jobs
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "provider": "garmin",
+  "jobType": "manual_sync"
+}
+```
+
+Garmin sync checks activities from March 1 of the current year through today,
+skips activity ids already present in `Activities.garmin_activity_id`, imports
+new FIT/JSON data into MySQL, sets `owner_user_id` to the current app user, and
+writes `SyncJobs`/`SyncLogs` rows. `activityCount` is the number of newly
+imported activities.
 
 Community read APIs are public; write APIs require login:
 
