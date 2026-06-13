@@ -10,7 +10,22 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Resolve-SqlPath([string]$PathText) {
-    return (Resolve-Path -LiteralPath $PathText).Path.Replace("\", "/")
+    return (Resolve-Path -LiteralPath $PathText).Path
+}
+
+function Invoke-MysqlScript([string]$ScriptPath, [string]$Label) {
+    Write-Host "$Label`: $ScriptPath"
+    $process = Start-Process `
+        -FilePath $Mysql `
+        -ArgumentList @("--defaults-extra-file=$defaultsFile") `
+        -RedirectStandardInput $ScriptPath `
+        -NoNewWindow `
+        -Wait `
+        -PassThru
+
+    if ($process.ExitCode -ne 0) {
+        throw "$Label failed with exit code $($process.ExitCode)"
+    }
 }
 
 $schemaPath = Resolve-SqlPath $Schema
@@ -24,20 +39,23 @@ $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
 $defaultsFile = Join-Path $env:TEMP ("motion_analysis_mysql_{0}.cnf" -f ([Guid]::NewGuid().ToString("N")))
 
 try {
-    @"
+    $defaultsContent = @"
 [client]
 user=$User
 password=$plainPassword
 host=$HostName
 port=$Port
 default-character-set=utf8mb4
-"@ | Set-Content -LiteralPath $defaultsFile -Encoding ASCII
+"@
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($defaultsFile, $defaultsContent, $utf8NoBom)
+    $plainPassword = $null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
 
-    Write-Host "Applying schema: $schemaPath"
-    & $Mysql --defaults-extra-file="$defaultsFile" --execute="source $schemaPath"
+    Invoke-MysqlScript -ScriptPath $schemaPath -Label "Applying schema"
 
-    Write-Host "Importing data: $importPath"
-    & $Mysql --defaults-extra-file="$defaultsFile" --execute="source $importPath"
+    Invoke-MysqlScript -ScriptPath $importPath -Label "Importing data"
 
     Write-Host "Verifying row counts..."
     & $Mysql --defaults-extra-file="$defaultsFile" --database=MotionAnalysis --table --execute="
@@ -51,6 +69,9 @@ UNION ALL SELECT 'Events', COUNT(*) FROM Events
 UNION ALL SELECT 'ActivitySummaries', COUNT(*) FROM ActivitySummaries
 UNION ALL SELECT 'ActivityZones', COUNT(*) FROM ActivityZones;
 "
+    if ($LASTEXITCODE -ne 0) {
+        throw "Verification query failed with exit code $LASTEXITCODE"
+    }
 }
 finally {
     if (Test-Path -LiteralPath $defaultsFile) {

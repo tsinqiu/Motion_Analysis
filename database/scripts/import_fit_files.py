@@ -29,8 +29,7 @@ BASE_TYPES = {
     0x0D: (4, "i", -0x80000000),
     0x0E: (4, "I", 0xFFFFFFFF),
     0x0F: (8, "q", -0x8000000000000000),
-    0x10: (8, "Q", 0xFFFFFFFFFFFFFFFF),
-    0x11: (8, "Q", 0xFFFFFFFFFFFFFFFF),
+    0x10: (8, "Q", 0x0000000000000000),
     0x13: (1, "B", 0xFF),
 }
 
@@ -215,6 +214,8 @@ def convert_value(global_num, field_num, value):
     if is_fit_timestamp_field(global_num, field_num):
         return iso(fit_time(value))
     if global_num == 20 and field_num in (0, 1):
+        if value == 0x7FFFFFFF:
+            return None
         return value * 180 / (2 ** 31)
     if field_num in (5, 9) and global_num in (18, 19, 20):
         return value / 100
@@ -483,6 +484,13 @@ def normalize_garmin_json(data):
     metadata = data.get("metadataDTO") if isinstance(data.get("metadataDTO"), dict) else {}
     activity_type = data.get("activityTypeDTO") if isinstance(data.get("activityTypeDTO"), dict) else {}
     normalized = dict(data)
+
+    def first_not_none(*values):
+        for value in values:
+            if value is not None:
+                return value
+        return None
+
     aliases = {
         "id": data.get("id") or data.get("activityId"),
         "name": data.get("name") or data.get("activityName"),
@@ -502,6 +510,11 @@ def normalize_garmin_json(data):
         "maxHeartRate": data.get("maxHeartRate") or summary.get("maxHR"),
         "avgCadenceSpm": data.get("avgCadenceSpm") or summary.get("averageRunCadence"),
         "maxCadenceSpm": data.get("maxCadenceSpm") or summary.get("maxRunCadence"),
+        "activityTrainingLoad": first_not_none(data.get("activityTrainingLoad"), summary.get("activityTrainingLoad")),
+        "anaerobicTrainingEffect": first_not_none(data.get("anaerobicTrainingEffect"), summary.get("anaerobicTrainingEffect")),
+        "trainingEffectLabel": first_not_none(data.get("trainingEffectLabel"), summary.get("trainingEffectLabel")),
+        "differenceBodyBattery": first_not_none(data.get("differenceBodyBattery"), summary.get("differenceBodyBattery")),
+        "vO2MaxValue": first_not_none(data.get("vO2MaxValue"), summary.get("vO2MaxValue")),
         "avgStrideLength": data.get("avgStrideLength") or summary.get("strideLength"),
         "elevationGain": data.get("elevationGain") or summary.get("elevationGain"),
         "elevationLoss": data.get("elevationLoss") or summary.get("elevationLoss"),

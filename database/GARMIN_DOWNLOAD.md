@@ -6,6 +6,10 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Run the commands below from the `database/` directory unless you intentionally
+override paths. All generated Garmin files stay under `database/data/`, which is
+ignored by git and should remain local.
+
 Download the latest 100 Garmin Connect activities as JSON summaries and FIT files:
 
 ```powershell
