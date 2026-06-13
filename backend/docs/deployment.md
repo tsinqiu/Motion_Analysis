@@ -90,15 +90,16 @@ Python scripts under `database/scripts/`, so production deployments must either
 deploy the repository `database/` directory beside `backend/`, or point the
 script paths to another copied location.
 
-Install Python dependencies on the server. Use Python 3.10+; Python 3.11 is
-recommended. Some older cloud images provide Python 3.6 as `python3`, which
-cannot run the Garmin scripts and cannot install the required
-`garminconnect>=0.3.5` release.
+Install Python dependencies on the server. Use Python 3.12+; Python 3.12 or
+3.13 is recommended. Some older cloud images provide Python 3.6 as `python3`,
+which cannot run the Garmin scripts. Python 3.11 also cannot install the
+required `garminconnect>=0.3.5` release because that package requires Python
+3.12+.
 
 ```bash
 cd /var/www/motion-analysis
-python3.11 -m pip install -r database/requirements.txt
-python3.11 database/scripts/download_garmin_connect.py --help
+python3.12 -m pip install -r database/requirements.txt
+python3.12 database/scripts/download_garmin_connect.py --help
 ```
 
 Use writable, persistent directories for Garmin tokens and sync work files.
@@ -113,7 +114,7 @@ sudo chown -R $USER:$USER /var/lib/motion-analysis
 Production `.env` values:
 
 ```text
-GARMIN_PYTHON_PATH=python3.11
+GARMIN_PYTHON_PATH=python3.12
 GARMIN_DOWNLOAD_SCRIPT=/var/www/motion-analysis/database/scripts/download_garmin_connect.py
 GARMIN_IMPORT_SCRIPT=/var/www/motion-analysis/database/scripts/import_fit_files.py
 GARMIN_TOKEN_BASE_DIR=/var/lib/motion-analysis/garmin_tokens/users
@@ -132,7 +133,7 @@ cloud environments at the same time, because Garmin may rate-limit requests.
 
 If dependency installation reports that no matching
 `garminconnect>=0.3.5,<0.4.0` distribution exists, first check
-`python3 --version`. On Python 3.6 or older, install a newer Python and point
+`python3 --version`. On Python 3.11 or older, install a newer Python and point
 `GARMIN_PYTHON_PATH` to it instead of relaxing the dependency version.
 
 ## Node Process

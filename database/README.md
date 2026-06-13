@@ -96,11 +96,11 @@ source database/sql/07_profile_follow_explore_uploads.sql;
 `scripts/download_garmin_connect.py` 会登录 Garmin Connect 拉取远端活动，`scripts/import_fit_files.py` 负责把下载到的 FIT/JSON 转成导入 SQL。运行 Garmin 同步前需要安装 Python 依赖：
 
 ```bash
-python3.11 -m pip install -r database/requirements.txt
-python3.11 database/scripts/download_garmin_connect.py --help
+python3.12 -m pip install -r database/requirements.txt
+python3.12 database/scripts/download_garmin_connect.py --help
 ```
 
-生产环境建议使用 Python 3.10+，优先使用 Python 3.11。如果服务器默认 `python3` 是 Python 3.6 或更低，脚本会因为 `from __future__ import annotations` 报错，并且 `garminconnect>=0.3.5` 也可能无法安装。
+生产环境建议使用 Python 3.12 或 3.13。如果服务器默认 `python3` 是 Python 3.6 或更低，脚本会因为 `from __future__ import annotations` 报错；如果使用 Python 3.11，`garminconnect>=0.3.5` 会因为要求 Python 3.12+ 而无法安装。
 
 ## 数据库名
 

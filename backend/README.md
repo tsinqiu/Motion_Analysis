@@ -204,15 +204,15 @@ GET  /api/sync/logs
 ```text
 source database/sql/06_extension_modules.sql;
 source database/sql/07_profile_follow_explore_uploads.sql;
-python3.11 -m pip install -r database/requirements.txt
+python3.12 -m pip install -r database/requirements.txt
 ```
 
-Garmin 同步脚本依赖 `from __future__ import annotations` 和 `garminconnect>=0.3.5`，生产环境建议使用 Python 3.10+，优先使用 Python 3.11。部分服务器默认 `python3` 仍是 Python 3.6，会出现 `future feature annotations is not defined` 或无法安装 `garminconnect>=0.3.5`，此时需要安装新版 Python，并在 `.env` 中显式配置 `GARMIN_PYTHON_PATH=python3.11`。
+Garmin 同步脚本依赖 `from __future__ import annotations` 和 `garminconnect>=0.3.5`。当前 `garminconnect>=0.3.5` 要求 Python 3.12+，生产环境建议使用 Python 3.12 或 3.13。部分服务器默认 `python3` 仍是 Python 3.6，会出现 `future feature annotations is not defined`；Python 3.11 会出现无法安装 `garminconnect>=0.3.5`。此时需要安装新版 Python，并在 `.env` 中显式配置 `GARMIN_PYTHON_PATH=python3.12`。
 
 生产环境建议配置持久、可写目录，不要依赖项目目录可写：
 
 ```text
-GARMIN_PYTHON_PATH=python3.11
+GARMIN_PYTHON_PATH=python3.12
 GARMIN_TOKEN_BASE_DIR=/var/lib/motion-analysis/garmin_tokens/users
 GARMIN_SYNC_WORK_DIR=/var/lib/motion-analysis/garmin_sync
 GARMIN_DOWNLOAD_SCRIPT=/var/www/motion-analysis/database/scripts/download_garmin_connect.py
