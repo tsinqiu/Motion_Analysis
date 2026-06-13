@@ -124,6 +124,12 @@ backend/docs/frontend-integration.md
 - `GET /api/manual-activities/:id`
 - `PUT /api/manual-activities/:id`
 - `DELETE /api/manual-activities/:id`
+- `GET /api/sync/providers/garmin/account`
+- `POST /api/sync/providers/garmin/authorize`
+- `POST /api/sync/providers/garmin/disconnect`
+- `POST /api/sync/jobs`
+- `GET /api/sync/jobs`
+- `GET /api/sync/logs`
 - `GET /api/ml/health`
 - `POST /api/ml/running-prediction`
 
@@ -161,7 +167,9 @@ Authorization: Bearer <token>
 
 手动上传首版只保存活动摘要数据，不保存逐秒轨迹点。上传成功后不会自动调用模型预测，前端可以单独提供“预测”按钮调用 `POST /api/ml/running-prediction`。
 
-历史 Garmin 导入数据归管理员所有；通过 Garmin 同步接口导入的新数据会归属到当前登录用户。普通用户只能修改或删除自己手动上传的数据。
+历史 Garmin 导入数据归管理员所有；通过 Garmin 同步接口导入的新数据会归属到当前登录用户。手动活动写操作（新增、修改、删除）当前收紧为管理员能力，普通用户只能查看运动记录；Garmin 导入记录保持只读，不提供通用编辑或删除接口。
+
+详情页轨迹预览读取 `GET /api/activities/:id/track-points`。接口单次最多返回 5000 个采样点，前端会按分页拉取完整轨迹；`TrackPoints.latitude`、`TrackPoints.longitude` 为空的采样点不会参与地图绘制。
 
 ## 查询校验和统计缓存
 

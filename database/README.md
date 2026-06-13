@@ -35,6 +35,8 @@ database/sql/02_import_data.sql
 
 `ActivitySummaries` 和 `ActivityZones` 用于保存前端需要展示的运动摘要、训练负荷、心率区间、功率区间和运动表现指标。`TrackPoints`、`Laps` 和 `Sessions` 继续作为详情页、轨迹预览和图表数据来源。
 
+真实地图轨迹依赖 `TrackPoints.latitude`、`TrackPoints.longitude` 和可选的 `TrackPoints.distance_m`。经纬度为空的采样点不会出现在地图上；整公里编号优先按 `distance_m` 插值到轨迹线，缺少距离字段时前端会按经纬度累计距离兜底。力量训练、爬楼、部分手动或旧导入记录可能没有 GPS 坐标，这类活动在详情页会显示空轨迹状态。
+
 ## 本地导入流程
 
 准备本地 Garmin 数据后，在项目根目录执行：
