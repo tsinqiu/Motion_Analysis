@@ -3,7 +3,6 @@
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">Training load balance</p>
           <h2>训练负荷平衡（{{ currentLoad }}）</h2>
         </div>
         <strong class="status-chip" :class="statusTone">{{ statusLabel }}</strong>
@@ -15,7 +14,7 @@
       </div>
     </section>
 
-    <StateBlock v-if="loading" title="正在加载训练负荷" message="正在读取 CTL、ATL、TSB 曲线。" />
+    <StateBlock v-if="loading" title="正在加载训练负荷" message="正在读取体能、疲劳和状态曲线。" />
     <StateBlock v-else-if="error" title="训练负荷加载失败" :message="error" action-label="重试" tone="danger" @action="load" />
     <StateBlock v-else-if="loadRows.length === 0" title="暂无训练负荷" message="当前数据源没有 activity_training_load。" />
 
@@ -23,7 +22,6 @@
       <ChartPanel title="体能 / 疲劳 / 状态" eyebrow="CTL · ATL · TSB" :option="loadOption" />
       <div class="load-dashboard">
         <section class="dark-panel today-state">
-          <p class="overline">Today state</p>
           <h2>今日状态</h2>
           <div class="state-metrics">
             <span><small>体能 CTL</small><b class="blue">{{ current.ctl }}</b></span>
@@ -33,7 +31,6 @@
           <p>{{ suggestion }}</p>
         </section>
         <section class="dark-panel risk-panel">
-          <p class="overline">Risk zones</p>
           <h2>状态区间</h2>
           <div class="risk-list">
             <span>过渡期</span>

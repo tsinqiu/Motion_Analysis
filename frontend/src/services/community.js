@@ -1,9 +1,11 @@
 import { communityPosts } from '@/mock/garsync'
 import { collectionPayload, getEnvelope, mutateEnvelope, useMockData } from '@/services/api'
 
-let mockPosts = communityPosts.map((post) => normalizePost({
+let mockPosts = communityPosts.map((post, index) => normalizePost({
   id: post.id,
+  userId: 9100 + index,
   username: post.user,
+  userBio: '热爱运动和数据记录',
   content: post.text,
   activityType: post.type,
   likeCount: post.likes,
@@ -19,6 +21,8 @@ export function normalizePost(row = {}) {
     ...row,
     id: row.id,
     username: row.username || row.user || 'User',
+    userId: row.userId || row.user_id || null,
+    userBio: row.userBio || row.user_bio || row.bio || '',
     content: row.content || row.text || '',
     activityType: row.activityType || row.activity_type || row.type || '',
     activityId: row.activityId || row.activity_id || null,
@@ -27,6 +31,7 @@ export function normalizePost(row = {}) {
     commentCount: Number(row.commentCount ?? 0),
     shareCount: Number(row.shareCount ?? 0),
     likedByMe: Boolean(row.likedByMe),
+    followedByMe: Boolean(row.followedByMe),
     createdAt: row.createdAt || row.created_at || '',
   }
 }
@@ -130,5 +135,25 @@ export async function sharePost(postId, channel = 'copy_link') {
   }
 
   const envelope = await mutateEnvelope('post', `/community/posts/${postId}/share`, { channel })
+  return envelope.data
+}
+
+export async function followUser(userId) {
+  if (useMockData()) {
+    mockPosts = mockPosts.map((post) => Number(post.userId) === Number(userId) ? { ...post, followedByMe: true } : post)
+    return { userId, following: true }
+  }
+
+  const envelope = await mutateEnvelope('post', `/community/users/${userId}/follow`, {})
+  return envelope.data
+}
+
+export async function unfollowUser(userId) {
+  if (useMockData()) {
+    mockPosts = mockPosts.map((post) => Number(post.userId) === Number(userId) ? { ...post, followedByMe: false } : post)
+    return { userId, following: false }
+  }
+
+  const envelope = await mutateEnvelope('delete', `/community/users/${userId}/follow`)
   return envelope.data
 }

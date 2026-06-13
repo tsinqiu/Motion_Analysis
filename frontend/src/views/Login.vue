@@ -1,16 +1,21 @@
 <template>
   <main class="auth-page">
     <section class="auth-card">
-      <RouterLink class="auth-brand" to="/login">
-        <span class="brand-mark">GS</span>
-        <span>
-          <strong>GarSync Motion</strong>
-          <small>运动数据库管理系统</small>
-        </span>
-      </RouterLink>
+      <div class="auth-topline">
+        <RouterLink class="auth-brand" to="/login">
+          <span class="brand-mark">GS</span>
+          <span>
+            <strong>GarSync Motion</strong>
+          </span>
+        </RouterLink>
+        <button class="theme-toggle auth-theme-toggle" type="button" @click="toggleTheme">
+          <component :is="isNightTheme ? Sun : Moon" :size="16" />
+          {{ isNightTheme ? '日间' : '夜晚' }}
+        </button>
+      </div>
 
       <div class="auth-heading">
-        <p class="overline">Secure access</p>
+        <p class="overline">安全访问</p>
         <h1>登录数据库管理系统</h1>
         <p>登录后可查看 Garmin 运动数据、管理手动活动并访问统计分析。</p>
       </div>
@@ -61,12 +66,14 @@
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Eye, EyeOff, LockKeyhole, LogIn, Mail } from '@lucide/vue'
+import { Eye, EyeOff, LockKeyhole, LogIn, Mail, Moon, Sun } from '@lucide/vue'
 
+import { useThemeMode } from '@/composables/useThemeMode'
 import { authSession, normalizeRedirect, signIn } from '@/stores/authStore'
 
 const route = useRoute()
 const router = useRouter()
+const { isNightTheme, toggleTheme } = useThemeMode()
 const showPassword = ref(false)
 const localError = ref('')
 const form = reactive({

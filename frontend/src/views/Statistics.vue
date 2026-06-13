@@ -3,10 +3,8 @@
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">Sports statistics</p>
           <h2>运动统计</h2>
         </div>
-        <button class="secondary-link" type="button">分享</button>
       </div>
       <div class="range-row">
         <button v-for="tab in tabs" :key="tab.value" type="button" :class="{ active: mode === tab.value }" @click="mode = tab.value">
@@ -20,18 +18,18 @@
       </div>
     </section>
 
-    <StateBlock v-if="loading" title="正在加载统计" message="正在读取 summary、timeline 和 activity-types。" />
+    <StateBlock v-if="loading" title="正在加载统计" message="正在读取运动统计。" />
     <StateBlock v-else-if="error" title="统计加载失败" :message="error" action-label="重试" tone="danger" @action="load" />
 
     <template v-else>
       <div class="metric-grid">
-        <MetricCard label="总距离" :value="formatDistance((summary.totalDistanceKm || 0) * 1000)" hint="按当前周期汇总" />
-        <MetricCard label="卡路里" :value="formatCalories(summary.totalCalories)" hint="ActivitySummaries.calories" />
-        <MetricCard label="脂肪消耗" :value="formatFatKg(summary.totalCalories)" hint="按 7700 kcal/kg 估算" />
-        <MetricCard label="运动时长" :value="formatClockDuration(summary.totalDurationS)" hint="Sessions.total_timer_time_s" />
+        <MetricCard label="总距离" :value="formatDistance((summary.totalDistanceKm || 0) * 1000)" />
+        <MetricCard label="卡路里" :value="formatCalories(summary.totalCalories)" />
+        <MetricCard label="脂肪消耗" :value="formatFatKg(summary.totalCalories)" />
+        <MetricCard label="运动时长" :value="formatClockDuration(summary.totalDurationS)" />
       </div>
-      <ChartPanel title="周期柱状统计" eyebrow="timeline API" :option="barOption" />
-      <ChartPanel title="运动类型占比" eyebrow="activity-types API" :option="typeOption" />
+      <ChartPanel title="周期柱状统计" eyebrow="运动统计" :option="barOption" />
+      <ChartPanel title="运动类型占比" eyebrow="运动统计" :option="typeOption" />
     </template>
   </div>
 </template>
@@ -105,7 +103,7 @@ function stepDate(offset) {
   }
   const date = new Date(`${selected.value}-01T00:00:00`)
   date.setMonth(date.getMonth() + offset)
-  selected.value = date.toISOString().slice(0, 7)
+  selected.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
 async function load() {

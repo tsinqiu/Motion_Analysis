@@ -3,12 +3,11 @@
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">Data sync center</p>
           <h2>同步</h2>
         </div>
-        <span class="status-chip" :class="isMockMode ? 'neutral' : 'good'">{{ isMockMode ? 'Mock mode' : '真实接口' }}</span>
+        <span class="status-chip good">同步中心</span>
       </div>
-      <p class="muted-copy">同步中心读取服务器 SyncProviderConnections、SyncJobs 与 SyncLogs；第三方 adapter 未配置时只展示真实不可用状态。</p>
+      <p class="muted-copy">管理不同平台的连接状态、同步任务和同步日志。</p>
       <p v-if="notice" class="success-copy">{{ notice }}</p>
     </section>
 
@@ -33,12 +32,12 @@
             <strong>{{ provider.name }}</strong>
             <span>{{ providerStatusLabel(provider.status) }}</span>
           </div>
-          <p v-if="provider.adapterStatus === 'not_configured'" class="muted-copy">后端未配置 {{ provider.name }} 授权 adapter。</p>
+          <p v-if="provider.adapterStatus === 'not_configured'" class="muted-copy">{{ provider.name }} 暂不可授权。</p>
           <div class="provider-meta">
             <span><small>方向</small><b>{{ directionLabel(provider.syncDirection) }}</b></span>
             <span><small>自动同步</small><b>{{ provider.autoSync ? '开启' : '关闭' }}</b></span>
             <span><small>最近同步</small><b>{{ formatDateTime(provider.lastSyncAt) }}</b></span>
-            <span><small>Adapter</small><b>{{ adapterLabel(provider.adapterStatus) }}</b></span>
+            <span><small>授权状态</small><b>{{ adapterLabel(provider.adapterStatus) }}</b></span>
           </div>
           <div class="sync-progress"><span :style="{ width: provider.status === 'connected' ? '100%' : '12%' }"></span></div>
           <div class="provider-controls">
@@ -75,11 +74,10 @@
       <section class="dark-panel">
         <div class="section-heading">
           <div>
-            <p class="overline">Sync jobs</p>
             <h2>同步任务</h2>
           </div>
         </div>
-        <StateBlock v-if="jobs.items.length === 0" title="暂无同步任务" message="服务器当前没有 SyncJobs 记录。" />
+        <StateBlock v-if="jobs.items.length === 0" title="暂无同步任务" message="当前没有同步任务。" />
         <div v-else class="log-list">
           <span v-for="job in jobs.items" :key="job.id">{{ job.provider }} · {{ job.jobType }} · {{ job.status }} · {{ formatDateTime(job.createdAt) }}</span>
         </div>
@@ -88,11 +86,10 @@
       <section class="dark-panel">
         <div class="section-heading">
           <div>
-            <p class="overline">Sync logs</p>
             <h2>同步日志</h2>
           </div>
         </div>
-        <StateBlock v-if="logs.items.length === 0" title="暂无同步日志" message="服务器当前没有 SyncLogs 记录。" />
+        <StateBlock v-if="logs.items.length === 0" title="暂无同步日志" message="当前没有同步日志。" />
         <div v-else class="log-list">
           <span v-for="log in logs.items" :key="log.id">{{ log.provider }} · {{ log.level }} · {{ log.message }}</span>
         </div>
@@ -106,7 +103,6 @@ import { onMounted, ref } from 'vue'
 import { Link as LinkIcon, RefreshCw } from '@lucide/vue'
 
 import StateBlock from '@/components/StateBlock.vue'
-import { useMockData } from '@/services/api'
 import {
   authorizeProvider,
   createSyncJob,
@@ -117,7 +113,6 @@ import {
   updateProviderSettings,
 } from '@/services/sync'
 
-const isMockMode = useMockData()
 const providers = ref([])
 const jobs = ref({ items: [] })
 const logs = ref({ items: [] })
@@ -199,7 +194,7 @@ function authorize(provider) {
     if (result?.authorizationUrl) {
       window.location.href = result.authorizationUrl
     }
-  }, provider.adapterStatus === 'not_configured' ? `${provider.name} 后端授权 adapter 未配置。` : `${provider.name} 授权已发起。`)
+  }, provider.adapterStatus === 'not_configured' ? `${provider.name} 暂不可授权。` : `${provider.name} 授权已发起。`)
 }
 
 function runSync(provider) {

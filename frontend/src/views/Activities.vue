@@ -3,8 +3,7 @@
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">My activities</p>
-          <h2>我的运动</h2>
+          <h2>运动记录</h2>
         </div>
         <button class="primary-link" type="button" @click="openCreate">
           <Plus :size="17" />
@@ -50,7 +49,7 @@
     <StateBlock
       v-if="loading"
       title="正在加载运动记录"
-      message="正在读取 Activities 与 Sessions 聚合结果。"
+      message="正在读取运动记录。"
     />
     <StateBlock
       v-else-if="error"
@@ -80,6 +79,7 @@
         >
           <template #actions>
             <button v-if="activity.is_manual" type="button" @click.stop="openEdit(activity)">编辑</button>
+            <button v-if="activity.is_manual" type="button" class="danger-action" @click.stop="removeManual(activity)">删除</button>
           </template>
         </ActivityCard>
       </div>
@@ -110,7 +110,7 @@ import ManualActivityModal from '@/components/ManualActivityModal.vue'
 import SportTabs from '@/components/SportTabs.vue'
 import StateBlock from '@/components/StateBlock.vue'
 import { sportFilters } from '@/mock/garsync'
-import { createManualActivity, getActivityPage, updateManualActivity } from '@/services/activities'
+import { createManualActivity, deleteManualActivity, getActivityPage, updateManualActivity } from '@/services/activities'
 import { hasAuthToken, normalizeRedirect } from '@/stores/authStore'
 
 const router = useRouter()
@@ -168,6 +168,16 @@ function openEdit(activity) {
   }
   editingActivity.value = activity
   modalOpen.value = true
+}
+
+async function removeManual(activity) {
+  if (!window.confirm('确定删除这条运动记录吗？')) return
+  try {
+    await deleteManualActivity(activity.id)
+    await load()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '删除失败'
+  }
 }
 
 function closeModal() {

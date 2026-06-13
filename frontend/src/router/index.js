@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import Admin from '@/views/Admin.vue'
 import Activities from '@/views/Activities.vue'
 import ActivityDetail from '@/views/ActivityDetail.vue'
 import Calendar from '@/views/Calendar.vue'
@@ -17,6 +18,7 @@ import Today from '@/views/Today.vue'
 import TrainingLoad from '@/views/TrainingLoad.vue'
 import Trends from '@/views/Trends.vue'
 import {
+  authSession,
   hasAuthToken,
   initAuthSession,
   installAuthFailureHandler,
@@ -118,6 +120,12 @@ const routes = [
     meta: { title: '设置', requiresAuth: true },
   },
   {
+    path: '/admin',
+    name: 'admin',
+    component: Admin,
+    meta: { title: '管理中心', requiresAuth: true, requiresAdmin: true },
+  },
+  {
     path: '/start',
     name: 'start-workout',
     component: StartWorkout,
@@ -171,11 +179,15 @@ router.beforeEach(async (to) => {
     }
   }
 
+  if (to.meta.requiresAdmin && authSession.user?.role !== 'admin') {
+    return { name: 'today' }
+  }
+
   return true
 })
 
 router.afterEach((to) => {
-  document.title = `${to.meta.title || '前端'} - Motion Analysis`
+  document.title = `${to.meta.title || '系统'} - Motion Analysis`
 })
 
 export default router

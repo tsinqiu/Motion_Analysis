@@ -27,7 +27,7 @@ const props = defineProps({
   },
   eyebrow: {
     type: String,
-    default: 'ECharts',
+    default: '图表',
   },
   option: {
     type: Object,

@@ -2,9 +2,8 @@
   <div class="page-stack">
     <section class="app-hero">
       <div>
-        <p class="overline">Start workout</p>
         <h2>开始运动</h2>
-        <p>创建后端 WorkoutSession，记录计时、距离、心率采样，结束后生成真实 live_workout 活动。</p>
+        <p>记录计时、距离、心率采样，结束后保存为一条运动记录。</p>
       </div>
     </section>
 
@@ -24,7 +23,7 @@
     </section>
 
     <section class="recording-panel dark-panel">
-      <span class="status-chip" :class="workout ? 'good' : 'neutral'">{{ workout ? `Workout #${workout.id}` : '未开始' }}</span>
+      <span class="status-chip" :class="workout ? 'good' : 'neutral'">{{ workout ? '记录中' : '未开始' }}</span>
       <div class="recording-time">{{ formatClockDuration(elapsed) }}</div>
       <div class="recording-metrics">
         <span><small>距离</small><b>{{ distanceKm.toFixed(2) }} km</b></span>
@@ -43,9 +42,9 @@
           取消
         </button>
       </div>
-      <p class="muted-copy">当前不读取 GPS 坐标；后端只接收浏览器生成的时间、距离、速度、心率等采样指标。</p>
+      <p class="muted-copy">当前不读取 GPS 坐标，只记录时间、距离、速度、心率等采样指标。</p>
       <p v-if="error" class="form-error">{{ error }}</p>
-      <p v-if="saved" class="success-copy">运动已保存为服务器活动，可在“我的运动”和“运动日历”查看。</p>
+      <p v-if="saved" class="success-copy">运动已保存，可在“运动记录”查看。</p>
       <RouterLink v-if="savedActivityId" class="secondary-link" :to="`/activities/${savedActivityId}`">查看活动详情</RouterLink>
     </section>
   </div>
@@ -63,7 +62,7 @@ import {
   pauseWorkout,
   resumeWorkout,
 } from '@/services/workouts'
-import { formatClockDuration } from '@/utils/formatters'
+import { formatClockDuration, formatPaceSeconds } from '@/utils/formatters'
 
 const selectedSport = ref(startSportTypes[0])
 const elapsed = ref(0)
@@ -85,7 +84,7 @@ const calories = computed(() => Math.round(elapsed.value * (selectedSport.value.
 const paceText = computed(() => {
   if (selectedSport.value.type === 'cycling') return `${(distanceKm.value / Math.max(elapsed.value / 3600, 0.01)).toFixed(1)} km/h`
   const secondsPerKm = elapsed.value / Math.max(distanceKm.value, 0.01)
-  return `${Math.floor(secondsPerKm / 60)}:${String(Math.round(secondsPerKm % 60)).padStart(2, '0')} /km`
+  return formatPaceSeconds(secondsPerKm)
 })
 
 function sqlDate(date) {

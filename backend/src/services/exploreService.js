@@ -19,10 +19,17 @@ function parseTags(value) {
 function toArticle(row) {
   return {
     id: row.id,
+    userId: row.userId,
+    username: row.username || '',
+    userBio: row.userBio || '',
     type: row.type,
     title: row.title,
     summary: row.summary,
     coverUrl: row.coverUrl,
+    videoUrl: row.videoPath || '',
+    videoOriginalName: row.videoOriginalName || '',
+    videoMimeType: row.videoMimeType || '',
+    videoSizeBytes: row.videoSizeBytes == null ? null : Number(row.videoSizeBytes),
     tags: parseTags(row.tags),
     difficulty: row.difficulty,
     durationMin: row.durationMin,
@@ -47,19 +54,27 @@ async function listArticles(filters) {
   const rows = await db.query(
     `
       SELECT
-        id,
-        type,
-        title,
-        summary,
-        cover_url AS coverUrl,
-        tags_json AS tags,
-        difficulty,
-        duration_min AS durationMin,
-        content,
-        published_at AS publishedAt
-      FROM ExploreArticles
-      WHERE ${where.join(' AND ')}
-      ORDER BY published_at DESC, id DESC
+        a.id,
+        a.user_id AS userId,
+        u.username,
+        u.bio AS userBio,
+        a.type,
+        a.title,
+        a.summary,
+        a.cover_url AS coverUrl,
+        a.video_path AS videoPath,
+        a.video_original_name AS videoOriginalName,
+        a.video_mime_type AS videoMimeType,
+        a.video_size_bytes AS videoSizeBytes,
+        a.tags_json AS tags,
+        a.difficulty,
+        a.duration_min AS durationMin,
+        a.content,
+        a.published_at AS publishedAt
+      FROM ExploreArticles a
+      LEFT JOIN Users u ON u.id = a.user_id
+      WHERE ${where.map((item) => item.replaceAll('status', 'a.status').replaceAll('type', 'a.type').replaceAll('title', 'a.title').replaceAll('summary', 'a.summary').replaceAll('content', 'a.content')).join(' AND ')}
+      ORDER BY a.published_at DESC, a.id DESC
       LIMIT ? OFFSET ?
     `,
     [...params, filters.pageSize, filters.offset]
@@ -79,18 +94,26 @@ async function getArticleById(articleId) {
   const rows = await db.query(
     `
       SELECT
-        id,
-        type,
-        title,
-        summary,
-        cover_url AS coverUrl,
-        tags_json AS tags,
-        difficulty,
-        duration_min AS durationMin,
-        content,
-        published_at AS publishedAt
-      FROM ExploreArticles
-      WHERE id = ? AND status = 'published'
+        a.id,
+        a.user_id AS userId,
+        u.username,
+        u.bio AS userBio,
+        a.type,
+        a.title,
+        a.summary,
+        a.cover_url AS coverUrl,
+        a.video_path AS videoPath,
+        a.video_original_name AS videoOriginalName,
+        a.video_mime_type AS videoMimeType,
+        a.video_size_bytes AS videoSizeBytes,
+        a.tags_json AS tags,
+        a.difficulty,
+        a.duration_min AS durationMin,
+        a.content,
+        a.published_at AS publishedAt
+      FROM ExploreArticles a
+      LEFT JOIN Users u ON u.id = a.user_id
+      WHERE a.id = ? AND a.status = 'published'
       LIMIT 1
     `,
     [articleId]
@@ -110,8 +133,43 @@ async function getRecommendations(filters, user) {
   });
 }
 
+async function createArticle(payload, user) {
+  const result = await db.query(
+    `
+      INSERT INTO ExploreArticles (
+        user_id,
+        type,
+        title,
+        summary,
+        content,
+        status,
+        published_at,
+        video_path,
+        video_original_name,
+        video_mime_type,
+        video_size_bytes
+      )
+      VALUES (?, ?, ?, ?, ?, 'published', NOW(3), ?, ?, ?, ?)
+    `,
+    [
+      user.id,
+      payload.type,
+      payload.title,
+      payload.summary || null,
+      payload.content || null,
+      payload.videoPath || null,
+      payload.videoOriginalName || null,
+      payload.videoMimeType || null,
+      payload.videoSizeBytes || null
+    ]
+  );
+
+  return getArticleById(result.insertId);
+}
+
 module.exports = {
   listArticles,
   getArticleById,
-  getRecommendations
+  getRecommendations,
+  createArticle
 };

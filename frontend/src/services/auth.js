@@ -18,6 +18,7 @@ function mockUserFromPayload(payload = {}) {
     email,
     role: 'user',
     status: 'active',
+    bio: '',
     createdAt: new Date().toISOString(),
   }
 }
@@ -76,6 +77,47 @@ export async function getCurrentUser() {
   }
 
   const response = await apiClient.get('/auth/me')
+  const data = unwrapApiResponse(response.data).data
+  return data?.user || data || null
+}
+
+export async function getAdminUsers() {
+  if (useMockData()) {
+    const current = loadMockUser() || mockUserFromPayload()
+    return [current]
+  }
+
+  const response = await apiClient.get('/admin/users')
+  return unwrapApiResponse(response.data).data || []
+}
+
+export async function createAdminUser(payload) {
+  if (useMockData()) {
+    return mockUserFromPayload(payload)
+  }
+
+  const response = await apiClient.post('/admin/users', payload)
+  return unwrapApiResponse(response.data).data
+}
+
+export async function disableAdminUser(id) {
+  if (useMockData()) {
+    return { id, status: 'disabled' }
+  }
+
+  const response = await apiClient.delete(`/admin/users/${id}`)
+  return unwrapApiResponse(response.data).data
+}
+
+export async function updateCurrentUserProfile(payload) {
+  if (useMockData()) {
+    const current = loadMockUser() || mockUserFromPayload()
+    const user = { ...current, bio: String(payload.bio || '').trim().slice(0, 50) }
+    saveMockUser(user)
+    return user
+  }
+
+  const response = await apiClient.put('/auth/me/profile', payload)
   const data = unwrapApiResponse(response.data).data
   return data?.user || data || null
 }

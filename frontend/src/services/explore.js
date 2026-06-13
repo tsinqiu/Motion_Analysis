@@ -1,4 +1,5 @@
 import { exploreArticles } from '@/mock/garsync'
+import { apiClient, unwrapApiResponse } from '@/services/http'
 import { collectionPayload, getEnvelope, useMockData } from '@/services/api'
 
 function normalizeArticle(row = {}) {
@@ -12,6 +13,11 @@ function normalizeArticle(row = {}) {
     readTime: row.readTime || row.read_time || '',
     summary: row.summary || row.excerpt || row.description || '',
     content: row.content || '',
+    username: row.username || '',
+    userBio: row.userBio || row.user_bio || row.bio || '',
+    videoUrl: row.videoUrl || row.video_url || '',
+    videoOriginalName: row.videoOriginalName || row.video_original_name || '',
+    videoSizeBytes: row.videoSizeBytes ?? row.video_size_bytes ?? null,
     publishedAt: row.publishedAt || row.published_at || '',
   }
 }
@@ -43,4 +49,30 @@ export async function getExploreRecommendations(params = {}) {
 
   const envelope = await getEnvelope('/explore/recommendations', { params })
   return normalizePaged(envelope.data)
+}
+
+export async function createExploreArticle(payload) {
+  if (useMockData()) {
+    return normalizeArticle({
+      ...payload,
+      id: `mock-article-${Date.now()}`,
+      username: 'Mock User',
+      userBio: '热爱运动和课程分享',
+      videoOriginalName: payload.video?.name || '',
+      videoSizeBytes: payload.video?.size || null,
+      publishedAt: new Date().toISOString(),
+    })
+  }
+
+  const formData = new FormData()
+  formData.append('type', payload.type)
+  formData.append('title', payload.title)
+  formData.append('summary', payload.summary || '')
+  formData.append('content', payload.content || '')
+  if (payload.video) {
+    formData.append('video', payload.video)
+  }
+
+  const response = await apiClient.post('/explore/articles', formData)
+  return normalizeArticle(unwrapApiResponse(response.data).data)
 }

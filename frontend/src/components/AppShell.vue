@@ -5,7 +5,6 @@
         <span class="brand-mark">GS</span>
         <span>
           <strong>GarSync Motion</strong>
-          <small>运动数据库管理系统</small>
         </span>
       </RouterLink>
 
@@ -19,12 +18,12 @@
 
     <div class="content-shell">
       <header class="topbar">
-        <div>
-          <p class="overline">Garmin 运动数据分析数据库系统</p>
-          <h1>{{ route.meta.title || '运动数据中枢' }}</h1>
-        </div>
+        <h1>Garmin 运动数据分析数据库系统</h1>
         <div class="topbar-actions">
-          <span class="api-status">{{ apiStatus }}</span>
+          <button class="theme-toggle" type="button" @click="toggleTheme">
+            <component :is="isNightTheme ? Sun : Moon" :size="16" />
+            {{ isNightTheme ? '日间' : '夜晚' }}
+          </button>
           <div class="user-chip" :title="authSession.user?.email">
             <UserRound :size="16" />
             <span>{{ userLabel }}</span>
@@ -42,11 +41,9 @@
       </header>
 
       <main class="page-frame">
-        <ApiModeBanner />
         <RouterView />
         <footer class="app-footer">
-          <span>Garmin 运动数据分析数据库管理系统前端</span>
-          <strong>Frontend: Hao Chen</strong>
+          <span>Garmin 运动数据分析数据库系统</span>
         </footer>
       </main>
     </div>
@@ -55,29 +52,26 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
 import {
   Activity,
   BarChart3,
-  CalendarDays,
   Compass,
   Database,
   HeartPulse,
   LogOut,
+  Moon,
   Play,
-  RefreshCw,
   Settings,
-  Trophy,
+  ShieldCheck,
+  Sun,
   UserRound,
   Users,
 } from '@lucide/vue'
 
-import ApiModeBanner from '@/components/ApiModeBanner.vue'
-import { useMockData } from '@/services/http'
 import { authSession, signOut } from '@/stores/authStore'
+import { useThemeMode } from '@/composables/useThemeMode'
 
-const route = useRoute()
-const apiStatus = useMockData() ? 'Mock 数据' : '后端 API'
+const { isNightTheme, toggleTheme } = useThemeMode()
 const userLabel = computed(() => authSession.user?.username || '已登录用户')
 const roleLabel = computed(() => authSession.user?.role === 'admin' ? '管理员' : '用户')
 
@@ -86,18 +80,22 @@ function handleLogout() {
   window.location.assign('/login')
 }
 
-const navItems = [
+const baseNavItems = [
   { to: '/today', label: '今日', icon: HeartPulse },
-  { to: '/activities', label: '我的运动', icon: Activity },
-  { to: '/calendar', label: '运动日历', icon: CalendarDays },
+  { to: '/activities', label: '运动记录', icon: Activity },
   { to: '/trends', label: '趋势', icon: BarChart3 },
-  { to: '/training-load', label: '训练负荷', icon: Activity },
   { to: '/statistics', label: '运动统计', icon: BarChart3 },
-  { to: '/records', label: '最佳记录', icon: Trophy },
-  { to: '/sync', label: '同步', icon: RefreshCw },
   { to: '/explore', label: '探索', icon: Compass },
   { to: '/community', label: '运动圈', icon: Users },
-  { to: '/schema', label: '数据库结构', icon: Database },
+  { to: '/schema', label: '数据库', icon: Database },
   { to: '/settings', label: '设置', icon: Settings },
 ]
+
+const navItems = computed(() => {
+  if (authSession.user?.role !== 'admin') return baseNavItems
+  return [
+    ...baseNavItems,
+    { to: '/admin', label: '管理中心', icon: ShieldCheck },
+  ]
+})
 </script>

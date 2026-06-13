@@ -3,6 +3,7 @@ const cors = require('cors');
 const config = require('./config');
 const { ApiError } = require('./errors');
 const createAuthRouter = require('./routes/authRoutes');
+const createAdminUserRouter = require('./routes/adminUserRoutes');
 const createHealthRouter = require('./routes/healthRoutes');
 const createActivityRouter = require('./routes/activityRoutes');
 const createStatsRouter = require('./routes/statsRoutes');
@@ -43,8 +44,10 @@ function createApp({
     })
   );
   app.use(express.json());
-  
+  app.use('/uploads', express.static(config.uploads.root));
+
   app.use('/api', createAuthRouter(authService));
+  app.use('/api', createAdminUserRouter(authService));
   app.use('/api', createHealthRouter(healthService));
   app.use('/api', createActivityRouter(activityService, authService));
   app.use('/api', createStatsRouter(activityService, authService));

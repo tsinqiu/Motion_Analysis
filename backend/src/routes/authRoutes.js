@@ -57,6 +57,18 @@ function createAuthRouter(authService = defaultAuthService) {
     })
   );
 
+  router.put(
+    '/auth/me/profile',
+    authenticate(authService),
+    asyncHandler(async (req, res) => {
+      const bio = String(req.body.bio || '').trim();
+      if (bio.length > 50) {
+        throw new ApiError(400, 'bio must be at most 50 characters', 'INVALID_AUTH_INPUT');
+      }
+      sendData(res, { user: await authService.updateProfile(req.user.id, { bio }) });
+    })
+  );
+
   return router;
 }
 

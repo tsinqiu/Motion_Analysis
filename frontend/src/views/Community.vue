@@ -3,10 +3,9 @@
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">Sports community</p>
           <h2>运动圈</h2>
         </div>
-        <span class="status-chip" :class="isMockMode ? 'neutral' : 'good'">{{ isMockMode ? 'Mock mode' : '真实接口' }}</span>
+        <span class="status-chip good">动态</span>
       </div>
       <form class="community-form" @submit.prevent="publish">
         <textarea v-model.trim="draft.content" maxlength="2000" placeholder="分享一次训练、恢复感受或数据库记录观察" />
@@ -28,7 +27,7 @@
     <StateBlock
       v-if="loading"
       title="正在加载运动圈"
-      message="正在读取 CommunityPosts。"
+      message="正在读取运动动态。"
     />
     <StateBlock
       v-else-if="error"
@@ -41,7 +40,7 @@
     <StateBlock
       v-else-if="posts.items.length === 0"
       title="暂无动态"
-      message="服务器 CommunityPosts 暂无公开内容。"
+      message="当前暂无公开内容。"
     />
 
     <div v-else class="community-feed">
@@ -51,14 +50,23 @@
           <div>
             <strong>{{ post.username }}</strong>
             <small>{{ post.activityType || visibilityLabel(post.visibility) }} · {{ formatDateTime(post.createdAt) }}</small>
+            <p v-if="post.userBio" class="author-bio">{{ post.userBio }}</p>
           </div>
+          <button
+            v-if="canFollow(post)"
+            class="secondary-link compact-link follow-button"
+            type="button"
+            :disabled="busy"
+            @click="toggleFollow(post)"
+          >
+            {{ post.followedByMe ? '已关注' : '关注' }}
+          </button>
         </div>
         <p>{{ post.content }}</p>
         <div class="post-metrics">
           <span><small>可见性</small><b>{{ visibilityLabel(post.visibility) }}</b></span>
           <span><small>关联活动</small><b>{{ post.activityId || '--' }}</b></span>
           <span><small>评论</small><b>{{ post.commentCount }}</b></span>
-          <span><small>分享</small><b>{{ post.shareCount }}</b></span>
         </div>
         <div class="post-actions">
           <button type="button" :disabled="busy" @click="toggleLike(post)">
@@ -67,13 +75,10 @@
           <button type="button" :disabled="busy" @click="toggleComments(post)">
             <MessageCircle :size="16" /> 评论
           </button>
-          <button type="button" :disabled="busy" @click="share(post)">
-            <Share2 :size="16" /> 分享
-          </button>
         </div>
 
         <div v-if="activePostId === post.id" class="comment-panel">
-          <StateBlock v-if="commentsLoading" title="正在加载评论" message="正在读取 CommunityComments。" />
+          <StateBlock v-if="commentsLoading" title="正在加载评论" message="正在读取评论。" />
           <StateBlock v-else-if="currentComments.items.length === 0" title="暂无评论" message="可以添加第一条评论。" />
           <div v-else class="log-list">
             <span v-for="comment in currentComments.items" :key="comment.id">{{ comment.username }}：{{ comment.content }}</span>
@@ -90,21 +95,21 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Heart, MessageCircle, Send, Share2 } from '@lucide/vue'
+import { Heart, MessageCircle, Send } from '@lucide/vue'
 
 import StateBlock from '@/components/StateBlock.vue'
-import { useMockData } from '@/services/api'
 import {
   createCommunityPost,
   createPostComment,
+  followUser,
   getCommunityPosts,
   getPostComments,
   likePost,
-  sharePost,
   unlikePost,
+  unfollowUser,
 } from '@/services/community'
+import { authSession } from '@/stores/authStore'
 
-const isMockMode = useMockData()
 const posts = ref({ items: [] })
 const commentsByPost = ref({})
 const draft = reactive({ content: '', visibility: 'public' })
@@ -147,7 +152,7 @@ async function publish() {
   try {
     await createCommunityPost({ content: draft.content, visibility: draft.visibility })
     draft.content = ''
-    notice.value = '动态已发布到服务器。'
+    notice.value = '动态已发布。'
     await load()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '动态发布失败'
@@ -178,10 +183,14 @@ function toggleLike(post) {
   )
 }
 
-function share(post) {
+function canFollow(post) {
+  return post.userId && Number(post.userId) !== Number(authSession.user?.id)
+}
+
+function toggleFollow(post) {
   return withPostAction(
-    () => sharePost(post.id, 'copy_link'),
-    '分享记录已写入服务器。',
+    () => post.followedByMe ? unfollowUser(post.userId) : followUser(post.userId),
+    post.followedByMe ? '已取消关注。' : '已关注。',
   )
 }
 

@@ -3,7 +3,6 @@
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">Personal bests</p>
           <h2>最佳记录</h2>
         </div>
         <button class="secondary-link" type="button" :disabled="isSyncing" @click="refreshRecords">
@@ -13,14 +12,13 @@
       </div>
     </section>
 
-    <StateBlock v-if="loading" title="正在加载最佳记录" message="正在读取 personal-bests 聚合结果。" />
+    <StateBlock v-if="loading" title="正在加载最佳记录" message="正在读取最佳记录。" />
     <StateBlock v-else-if="error" title="最佳记录加载失败" :message="error" action-label="重试" tone="danger" @action="load" />
 
     <div v-else class="records-grid">
-      <RecordGroup title="步数记录" :items="records.steps || []" />
-      <RecordGroup title="跑步记录" :items="records.running || []" />
-      <RecordGroup title="骑行记录" :items="records.cycling || []" />
-      <RecordGroup title="游泳记录" :items="records.swimming || []" />
+      <RecordGroup title="跑步记录" :items="filteredRecords(records.running || [])" />
+      <RecordGroup title="骑行记录" :items="filteredRecords(records.cycling || [])" />
+      <RecordGroup title="游泳记录" :items="filteredRecords(records.swimming || [])" />
     </div>
   </div>
 </template>
@@ -33,6 +31,7 @@ import { CloudUpload, ChevronRight } from '@lucide/vue'
 import StateBlock from '@/components/StateBlock.vue'
 import { useAsyncData } from '@/composables/useAsyncData'
 import { getPersonalBests } from '@/services/stats'
+import { formatPaceSeconds } from '@/utils/formatters'
 
 const router = useRouter()
 const { data, error, load, loading } = useAsyncData(getPersonalBests, {})
@@ -48,6 +47,17 @@ async function refreshRecords() {
   }
 }
 
+function filteredRecords(items = []) {
+  return items
+    .filter((item) => !['最高训练负荷', '最高平均心率', '训练负荷', '平均心率'].includes(item.label))
+    .map((item) => {
+      if (String(item.unit || '').toLowerCase().includes('s/km')) {
+        return { ...item, value: formatPaceSeconds(Number(item.value)), unit: '' }
+      }
+      return item
+    })
+}
+
 const RecordGroup = {
   props: {
     title: String,
@@ -56,7 +66,7 @@ const RecordGroup = {
   setup(props) {
     return () => h('section', { class: 'dark-panel record-group' }, [
       h('div', { class: 'section-heading' }, [
-        h('div', [h('p', { class: 'overline' }, 'Record group'), h('h2', props.title)]),
+        h('div', [h('h2', props.title)]),
       ]),
       h('div', { class: 'record-list' }, (props.items?.length ? props.items : [{ key: 'empty', label: '暂无真实记录', value: '--', unit: '' }]).map((item) =>
         h('button', {

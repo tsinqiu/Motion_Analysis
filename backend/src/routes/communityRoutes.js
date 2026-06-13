@@ -127,6 +127,22 @@ function createCommunityRouter({ communityService = defaultCommunityService, aut
     })
   );
 
+  router.post(
+    '/community/users/:id/follow',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      sendData(res, await communityService.followUser(parsePositiveId(req.params.id, 'user id'), req.user));
+    })
+  );
+
+  router.delete(
+    '/community/users/:id/follow',
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      sendData(res, await communityService.unfollowUser(parsePositiveId(req.params.id, 'user id'), req.user));
+    })
+  );
+
   return router;
 }
 

@@ -6,6 +6,7 @@ function toPost(row) {
     id: row.id,
     userId: row.userId,
     username: row.username,
+    userBio: row.userBio || '',
     content: row.content,
     activityId: row.activityId,
     visibility: row.visibility,
@@ -13,6 +14,7 @@ function toPost(row) {
     commentCount: Number(row.commentCount || 0),
     shareCount: Number(row.shareCount || 0),
     likedByMe: Boolean(row.likedByMe),
+    followedByMe: Boolean(row.followedByMe),
     createdAt: row.createdAt
   };
 }
@@ -34,6 +36,7 @@ function postSelect(user) {
       p.id,
       p.user_id AS userId,
       u.username,
+      u.bio AS userBio,
       p.content,
       p.activity_id AS activityId,
       p.visibility,
@@ -45,6 +48,11 @@ function postSelect(user) {
         user
           ? 'EXISTS(SELECT 1 FROM CommunityLikes ml WHERE ml.post_id = p.id AND ml.user_id = ?) AS likedByMe'
           : 'FALSE AS likedByMe'
+      },
+      ${
+        user
+          ? 'EXISTS(SELECT 1 FROM UserFollows uf WHERE uf.follower_user_id = ? AND uf.following_user_id = p.user_id) AS followedByMe'
+          : 'FALSE AS followedByMe'
       }
     FROM CommunityPosts p
     JOIN Users u ON u.id = p.user_id
@@ -55,7 +63,28 @@ function visibilityWhere(user) {
   if (!user) {
     return { sql: "p.visibility = 'public'", params: [] };
   }
-  return { sql: "(p.visibility = 'public' OR p.user_id = ?)", params: [user.id] };
+  return {
+    sql: `
+      (
+        p.visibility = 'public'
+        OR p.user_id = ?
+        OR (
+          p.visibility = 'followers'
+          AND EXISTS (
+            SELECT 1
+            FROM UserFollows vf
+            WHERE vf.follower_user_id = ?
+              AND vf.following_user_id = p.user_id
+          )
+        )
+      )
+    `,
+    params: [user.id, user.id]
+  };
+}
+
+function postSelectParams(user) {
+  return user ? [user.id, user.id] : [];
 }
 
 async function ensureActivityUsable(activityId, user) {
@@ -81,7 +110,7 @@ async function getPostById(postId, user) {
       WHERE p.id = ? AND ${visibility.sql}
       LIMIT 1
     `,
-    [...(user ? [user.id] : []), postId, ...visibility.params]
+    [...postSelectParams(user), postId, ...visibility.params]
   );
   const post = rows[0];
   if (!post) {
@@ -115,7 +144,7 @@ async function listPosts(filters, user) {
       ORDER BY p.created_at DESC, p.id DESC
       LIMIT ? OFFSET ?
     `,
-    [...(user ? [user.id] : []), ...params, filters.pageSize, filters.offset]
+    [...postSelectParams(user), ...params, filters.pageSize, filters.offset]
   );
 
   const total = Number(countRows[0]?.total || 0);
@@ -225,6 +254,34 @@ async function sharePost(postId, payload, user) {
   };
 }
 
+async function ensureFollowTarget(targetUserId, user) {
+  if (Number(targetUserId) === Number(user.id)) {
+    throw new ApiError(400, 'cannot follow yourself', 'VALIDATION_ERROR');
+  }
+  const rows = await db.query("SELECT id FROM Users WHERE id = ? AND status = 'active' LIMIT 1", [targetUserId]);
+  if (!rows[0]) {
+    throw new ApiError(404, 'user not found', 'NOT_FOUND');
+  }
+}
+
+async function followUser(targetUserId, user) {
+  await ensureFollowTarget(targetUserId, user);
+  await db.query(
+    'INSERT IGNORE INTO UserFollows (follower_user_id, following_user_id) VALUES (?, ?)',
+    [user.id, targetUserId]
+  );
+  return { userId: targetUserId, following: true };
+}
+
+async function unfollowUser(targetUserId, user) {
+  await ensureFollowTarget(targetUserId, user);
+  await db.query(
+    'DELETE FROM UserFollows WHERE follower_user_id = ? AND following_user_id = ?',
+    [user.id, targetUserId]
+  );
+  return { userId: targetUserId, following: false };
+}
+
 module.exports = {
   listPosts,
   createPost,
@@ -232,5 +289,7 @@ module.exports = {
   createComment,
   likePost,
   unlikePost,
-  sharePost
+  sharePost,
+  followUser,
+  unfollowUser
 };

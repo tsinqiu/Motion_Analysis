@@ -2,7 +2,7 @@
   <article class="metric-card">
     <span class="metric-label">{{ label }}</span>
     <strong>{{ value }}</strong>
-    <small>{{ hint }}</small>
+    <small v-if="hint">{{ hint }}</small>
   </article>
 </template>
 

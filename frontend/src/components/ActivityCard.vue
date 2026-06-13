@@ -1,6 +1,15 @@
 <template>
-  <article class="activity-card" :class="sportClass" :style="{ '--sport-color': sportColor }">
-    <button type="button" class="activity-card-main" @click="$emit('select', activity)">
+  <article
+    class="activity-card"
+    :class="sportClass"
+    :style="{ '--sport-color': sportColor }"
+    role="button"
+    tabindex="0"
+    @click="$emit('select', activity)"
+    @keydown.enter="$emit('select', activity)"
+    @keydown.space.prevent="$emit('select', activity)"
+  >
+    <div class="activity-card-main">
       <span class="activity-accent" aria-hidden="true"></span>
       <span class="activity-icon" aria-hidden="true">
         <component :is="sportIcon" :size="22" />
@@ -12,11 +21,9 @@
         </span>
         <span class="activity-subtitle">
           {{ activity.activity_type }}
-          <span v-if="activity.data_source"> · {{ activity.data_source }}</span>
-          <span v-if="activity.is_manual"> · 可编辑</span>
         </span>
       </span>
-    </button>
+    </div>
 
     <div class="activity-metrics">
       <span>

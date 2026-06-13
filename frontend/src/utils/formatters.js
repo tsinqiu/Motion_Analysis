@@ -29,9 +29,16 @@ export function formatClockDuration(seconds) {
 export function formatPace(speedMps) {
   if (!speedMps) return '--'
   const secondsPerKm = 1000 / speedMps
-  const minutes = Math.floor(secondsPerKm / 60)
-  const seconds = Math.round(secondsPerKm % 60).toString().padStart(2, '0')
-  return `${minutes}:${seconds} /km`
+  return formatPaceSeconds(secondsPerKm)
+}
+
+export function formatPaceSeconds(secondsPerKm) {
+  if (secondsPerKm === null || secondsPerKm === undefined) return '--'
+  const numericSeconds = Number(secondsPerKm)
+  if (!Number.isFinite(numericSeconds) || numericSeconds <= 0) return '--'
+  const minutes = Math.floor(numericSeconds / 60)
+  const seconds = Math.round(numericSeconds % 60).toString().padStart(2, '0')
+  return `${minutes}:${seconds}/km`
 }
 
 export function formatSpeed(speedMps) {

@@ -3,18 +3,16 @@
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">Settings</p>
           <h2>设置</h2>
         </div>
         <span class="status-chip good">隐私优先</span>
       </div>
-      <p class="muted-copy">前端不会保存真实邮箱、服务器账号、数据库密码或个人轨迹原始文件；`.env` 只保留本地。</p>
+      <p class="muted-copy">系统只展示必要的账号和运动数据，不在页面中暴露数据库密码、密钥或个人轨迹原始文件。</p>
     </section>
 
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">Account</p>
           <h2>账号信息</h2>
         </div>
         <span class="status-chip good">{{ roleLabel }}</span>
@@ -33,7 +31,7 @@
     <StateBlock
       v-if="loading"
       title="正在加载设置"
-      message="正在读取服务器 UserSettings。"
+      message="正在读取个人设置。"
     />
     <StateBlock
       v-else-if="error"
@@ -45,6 +43,11 @@
     />
 
     <form v-else class="settings-grid" @submit.prevent="save">
+      <label class="settings-wide profile-bio-field">
+        <span>个人介绍</span>
+        <textarea v-model.trim="profile.bio" maxlength="50" placeholder="用一句话介绍你的运动偏好，最多 50 字" />
+        <small>{{ profile.bio.length }}/50</small>
+      </label>
       <label>
         <span>距离单位</span>
         <select v-model="settings.distanceUnit">
@@ -69,8 +72,8 @@
       <label>
         <span>配速显示</span>
         <select v-model="settings.paceUnit">
-          <option value="min_per_km">min/km</option>
-          <option value="min_per_mile">min/mi</option>
+          <option value="min_per_km">分/公里</option>
+          <option value="min_per_mile">分/英里</option>
         </select>
       </label>
       <label>
@@ -91,7 +94,7 @@
       </label>
       <div class="settings-actions">
         <button class="primary-link" type="submit" :disabled="saving">{{ saving ? '保存中' : '保存设置' }}</button>
-        <span v-if="saved" class="success-copy">设置已保存到服务器。</span>
+        <span v-if="saved" class="success-copy">设置已保存。</span>
       </div>
     </form>
   </div>
@@ -102,6 +105,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import StateBlock from '@/components/StateBlock.vue'
+import { updateCurrentUserProfile } from '@/services/auth'
 import { getSettings, updateSettings } from '@/services/settings'
 import { authSession, signOut } from '@/stores/authStore'
 
@@ -115,12 +119,19 @@ const settings = reactive({
   hideMapEndpoints: true,
   healthSync: false,
 })
+const profile = reactive({
+  bio: '',
+})
 const error = ref('')
 const loading = ref(false)
 const saving = ref(false)
 const saved = ref(false)
 const roleLabel = computed(() => authSession.user?.role === 'admin' ? '管理员' : '普通用户')
 const initials = computed(() => String(authSession.user?.username || 'GS').slice(0, 2).toUpperCase())
+
+function syncProfile() {
+  profile.bio = authSession.user?.bio || ''
+}
 
 async function load() {
   loading.value = true
@@ -140,7 +151,15 @@ async function save() {
   error.value = ''
   saved.value = false
   try {
-    Object.assign(settings, await updateSettings(settings))
+    const [nextSettings, nextUser] = await Promise.all([
+      updateSettings(settings),
+      updateCurrentUserProfile({ bio: profile.bio }),
+    ])
+    Object.assign(settings, nextSettings)
+    if (nextUser) {
+      authSession.user = nextUser
+      syncProfile()
+    }
     saved.value = true
   } catch (err) {
     error.value = err instanceof Error ? err.message : '设置保存失败'
@@ -154,5 +173,8 @@ function handleLogout() {
   router.push({ name: 'login' })
 }
 
-onMounted(load)
+onMounted(() => {
+  syncProfile()
+  load()
+})
 </script>

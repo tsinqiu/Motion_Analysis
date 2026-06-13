@@ -16,7 +16,7 @@
     <StateBlock
       v-else-if="!activity"
       title="未找到该活动"
-      message="当前活动 ID 不存在，或后端接口没有返回对应记录。"
+      message="当前活动不存在，或没有可查看的记录。"
       action-label="返回列表"
       @action="router.push('/activities')"
     />
@@ -24,9 +24,8 @@
     <template v-else>
       <section class="app-hero detail-hero" :style="{ '--sport-color': sportColor }">
         <div>
-          <p class="overline">{{ activity.activity_key }}</p>
           <h2>{{ activity.activity_name || activity.activity_type }}</h2>
-          <p>{{ activity.local_start_time }} 开始，详情由 Activities、Sessions、TrackPoints、Laps 和 ActivitySummaries 聚合展示。</p>
+          <p>{{ formatDateTime(activity.local_start_time) }} 开始</p>
         </div>
         <div class="hero-actions">
           <RouterLink class="secondary-link inverse" to="/activities">返回列表</RouterLink>
@@ -38,15 +37,15 @@
       </section>
 
       <div class="metric-grid">
-        <MetricCard label="距离" :value="formatDistance(activity.total_distance_m)" hint="Sessions.total_distance_m" />
-        <MetricCard label="总用时" :value="formatClockDuration(activity.total_timer_time_s)" hint="Sessions.total_timer_time_s" />
-        <MetricCard label="平均心率" :value="`${activity.avg_heart_rate_bpm || '--'} bpm`" hint="Sessions.avg_heart_rate_bpm" />
-        <MetricCard label="训练负荷" :value="`${activity.activity_training_load || '--'}`" hint="ActivitySummaries.activity_training_load" />
+        <MetricCard label="距离" :value="formatDistance(activity.total_distance_m)" />
+        <MetricCard label="总用时" :value="formatClockDuration(activity.total_timer_time_s)" />
+        <MetricCard label="平均心率" :value="`${activity.avg_heart_rate_bpm || '--'} bpm`" />
+        <MetricCard label="训练负荷" :value="`${activity.activity_training_load || '--'}`" />
       </div>
 
       <div class="detail-grid">
-        <ChartPanel title="心率曲线" eyebrow="heart-rate API" :option="heartRateOption" />
-        <ChartPanel title="速度曲线" eyebrow="speed API" :option="speedOption" />
+        <ChartPanel title="心率曲线" eyebrow="运动详情" :option="heartRateOption" />
+        <ChartPanel title="速度曲线" eyebrow="运动详情" :option="speedOption" />
         <RoutePreview :points="trackPoints" />
         <LapTable :laps="laps" />
       </div>
@@ -54,7 +53,6 @@
       <section class="dark-panel">
         <div class="section-heading">
           <div>
-            <p class="overline">AI running prediction</p>
             <h2>跑步负荷预测</h2>
           </div>
           <button class="primary-link" type="button" @click="runPrediction">运行分析</button>
@@ -71,7 +69,7 @@
           <span><small>置信度</small><b>{{ Math.round((prediction.confidence || 0) * 100) }}%</b></span>
           <p>{{ prediction.recoveryAdvice }}</p>
         </div>
-        <p v-else class="muted-copy">模型预测与手动上传解耦，点击后调用 `/api/ml/running-prediction` 或 mock 模型。</p>
+        <p v-else class="muted-copy">点击后根据当前运动记录生成训练建议。</p>
       </section>
 
       <ManualActivityModal
@@ -105,7 +103,7 @@ import {
   predictRunningLoad,
   updateManualActivity,
 } from '@/services/activities'
-import { formatClockDuration, formatDistance } from '@/utils/formatters'
+import { formatClockDuration, formatDateTime, formatDistance } from '@/utils/formatters'
 
 const route = useRoute()
 const router = useRouter()

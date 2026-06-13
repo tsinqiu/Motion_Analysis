@@ -74,6 +74,11 @@ const config = {
   cache: {
     statsTtlSeconds: parseInteger(process.env.STATS_CACHE_TTL_SECONDS, 60)
   },
+  uploads: {
+    root: resolveBackendPath(process.env.UPLOAD_ROOT, 'uploads'),
+    exploreVideosDir: resolveBackendPath(process.env.EXPLORE_VIDEO_UPLOAD_DIR, 'uploads/explore-videos'),
+    maxVideoBytes: parseInteger(process.env.EXPLORE_VIDEO_MAX_BYTES, 200 * 1024 * 1024)
+  },
   ml: {
     pythonPath: process.env.ML_PYTHON_PATH || 'python',
     scriptPath:

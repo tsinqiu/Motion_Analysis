@@ -3,10 +3,9 @@
     <section class="dark-panel">
       <div class="section-heading">
         <div>
-          <p class="overline">Sports calendar</p>
           <h2>运动日历</h2>
         </div>
-        <button class="primary-link" type="button" @click="openCreate">
+        <button v-if="isAdmin" class="primary-link" type="button" @click="openCreate">
           <Plus :size="17" />
           添加
         </button>
@@ -18,7 +17,7 @@
       </div>
     </section>
 
-    <StateBlock v-if="loading" title="正在加载日历" message="正在读取 stats/calendar 月视图。" />
+    <StateBlock v-if="loading" title="正在加载日历" message="正在读取本月运动记录。" />
     <StateBlock v-else-if="error" title="日历加载失败" :message="error" action-label="重试" tone="danger" @action="load" />
 
     <template v-else>
@@ -47,7 +46,6 @@
       <section class="dark-panel">
         <div class="section-heading">
           <div>
-            <p class="overline">Selected day</p>
             <h2>{{ selectedDate || monthLabel }}</h2>
           </div>
         </div>
@@ -86,15 +84,17 @@ import ManualActivityModal from '@/components/ManualActivityModal.vue'
 import StateBlock from '@/components/StateBlock.vue'
 import { createManualActivity } from '@/services/activities'
 import { getCalendarStats } from '@/services/stats'
+import { authSession } from '@/stores/authStore'
 
 const router = useRouter()
-const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 const month = ref('2026-06')
 const calendar = ref({ days: [] })
 const selectedDate = ref('2026-06-10')
 const error = ref('')
 const loading = ref(false)
 const modalOpen = ref(false)
+const isAdmin = computed(() => authSession.user?.role === 'admin')
 
 const monthLabel = computed(() => `${month.value.slice(0, 4)}年${Number(month.value.slice(5, 7))}月`)
 const leadingBlanks = computed(() => new Date(`${month.value}-01T00:00:00`).getDay())
@@ -112,12 +112,17 @@ function iconClass(type) {
 function stepMonth(offset) {
   const date = new Date(`${month.value}-01T00:00:00`)
   date.setMonth(date.getMonth() + offset)
-  month.value = date.toISOString().slice(0, 7)
+  month.value = formatMonthKey(date)
   selectedDate.value = `${month.value}-01`
 }
 
 function openCreate() {
+  if (!isAdmin.value) return
   modalOpen.value = true
+}
+
+function formatMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
 async function handleSaved(activity) {
@@ -133,11 +138,15 @@ function normalizeDateKey(value) {
   if (typeof value === 'string') {
     const normalized = value.replace(' ', 'T')
     const parsed = new Date(normalized)
-    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10)
+    if (!Number.isNaN(parsed.getTime())) return formatDateKey(parsed)
     return value.slice(0, 10)
   }
   const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? new Date().toISOString().slice(0, 10) : parsed.toISOString().slice(0, 10)
+  return Number.isNaN(parsed.getTime()) ? formatDateKey(new Date()) : formatDateKey(parsed)
+}
+
+function formatDateKey(date) {
+  return `${formatMonthKey(date)}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 async function load() {
