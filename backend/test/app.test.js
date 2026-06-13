@@ -91,6 +91,7 @@ function buildApp(overrides = {}) {
       { provider: 'apple_health', name: 'Apple Health', status: 'not_connected', adapterStatus: 'not_configured' }
     ],
     updateProviderSettings: async (provider, payload) => ({ provider, ...payload }),
+    getProviderAccount: async (provider) => ({ provider, exists: false, status: 'not_connected', email: null, lastSyncAt: null }),
     authorizeProvider: async (provider) => ({
       provider,
       status: 'pending_authorization',
@@ -1011,6 +1012,70 @@ test('GET /api/sync/providers returns fixed provider states', async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(response.body.data.map((item) => item.provider), ['garmin', 'strava', 'coros', 'apple_health']);
   assert.equal(response.body.data[0].adapterStatus, 'not_configured');
+});
+
+test('GET /api/sync/providers/:provider/account returns current user Garmin binding state', async () => {
+  let captured;
+  const app = buildApp({
+    syncService: {
+      listProviders: async () => [],
+      updateProviderSettings: async () => ({}),
+      getProviderAccount: async (provider, user) => {
+        captured = { provider, user };
+        return { provider, exists: true, status: 'connected', email: 'runner@example.com', lastSyncAt: null };
+      },
+      authorizeProvider: async () => ({}),
+      disconnectProvider: async () => ({}),
+      createJob: async () => ({}),
+      listJobs: async () => ({ items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 }),
+      listLogs: async () => ({ items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 })
+    }
+  });
+
+  const response = await request(app)
+    .get('/api/sync/providers/garmin/account')
+    .set('Authorization', 'Bearer valid-user-token');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.exists, true);
+  assert.equal(response.body.data.email, 'runner@example.com');
+  assert.equal(captured.provider, 'garmin');
+  assert.equal(captured.user.id, 2);
+});
+
+test('POST /api/sync/providers/:provider/authorize passes Garmin credentials for current user', async () => {
+  let captured;
+  const app = buildApp({
+    syncService: {
+      listProviders: async () => [],
+      updateProviderSettings: async () => ({}),
+      getProviderAccount: async () => ({}),
+      authorizeProvider: async (provider, user, payload) => {
+        captured = { provider, user, payload };
+        return { provider, exists: true, status: 'connected', email: payload.email };
+      },
+      disconnectProvider: async () => ({}),
+      createJob: async () => ({}),
+      listJobs: async () => ({ items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 }),
+      listLogs: async () => ({ items: [], page: 1, pageSize: 20, total: 0, totalPages: 0 })
+    }
+  });
+
+  const response = await request(app)
+    .post('/api/sync/providers/garmin/authorize')
+    .set('Authorization', 'Bearer valid-user-token')
+    .send({ email: 'runner@example.com', password: 'secret', mfaCode: '123456', isCn: true });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.status, 'connected');
+  assert.equal(captured.provider, 'garmin');
+  assert.equal(captured.user.id, 2);
+  assert.deepEqual(captured.payload, {
+    email: 'runner@example.com',
+    password: 'secret',
+    mfaCode: '123456',
+    isCn: true
+  });
 });
 
 test('POST /api/sync/jobs creates skipped job when adapter is not configured', async () => {
