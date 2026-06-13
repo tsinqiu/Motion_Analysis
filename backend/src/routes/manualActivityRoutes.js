@@ -8,7 +8,7 @@ const statsCache = require('../cache/statsCache');
 const { sendCreated, sendData } = require('../response');
 
 const NUMERIC_LIMITS = {
-  distanceM: { min: 1, max: 200000, required: true },
+  distanceM: { min: 0, max: 200000, required: true },
   durationS: { min: 1, max: 86400, required: true },
   movingDurationS: { min: 1, max: 86400 },
   elapsedDurationS: { min: 1, max: 86400 },
@@ -27,6 +27,15 @@ const NUMERIC_LIMITS = {
   elevationLossM: { min: 0, max: 10000 },
   avgStrideLengthCm: { min: 0, max: 300 }
 };
+const DISTANCE_REQUIRED_TYPES = new Set([
+  'running',
+  'street_running',
+  'track_running',
+  'treadmill_running',
+  'cycling',
+  'road_biking',
+  'indoor_cycling'
+]);
 
 function optionalText(value, max = 200) {
   if (value === undefined || value === null || value === '') {
@@ -105,6 +114,9 @@ function parseManualActivity(body) {
     payload.avgSpeedMps = payload.distanceM / payload.durationS;
   }
 
+  if (DISTANCE_REQUIRED_TYPES.has(payload.activityType) && payload.distanceM <= 0) {
+    throw new ApiError(400, 'distanceM must be greater than 0 for distance activities', 'INVALID_MANUAL_ACTIVITY');
+  }
   if (payload.movingDurationS > payload.elapsedDurationS || payload.durationS > payload.elapsedDurationS) {
     throw new ApiError(400, 'durations must be consistent', 'INVALID_MANUAL_ACTIVITY');
   }

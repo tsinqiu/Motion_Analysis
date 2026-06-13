@@ -63,6 +63,7 @@ source database/sql/01_schema.sql;
 source database/sql/02_import_data.sql;
 source database/sql/04_auth_manual_upload.sql;
 source database/sql/05_performance_indexes.sql;
+source database/sql/06_extension_modules.sql;
 ```
 
 Then seed the admin user:
@@ -73,6 +74,49 @@ npm run seed:admin
 ```
 
 Keep MySQL bound to localhost or blocked by firewall. Do not expose port `3306` publicly.
+
+## Garmin Sync
+
+Garmin sync is available through the authenticated sync APIs. It depends on the
+Python scripts under `database/scripts/`, so production deployments must either
+deploy the repository `database/` directory beside `backend/`, or point the
+script paths to another copied location.
+
+Install Python dependencies on the server:
+
+```bash
+cd /var/www/motion-analysis
+python3 -m pip install -r database/requirements.txt
+```
+
+Use writable, persistent directories for Garmin tokens and sync work files.
+These directories must be writable by the Node/PM2 user:
+
+```bash
+sudo mkdir -p /var/lib/motion-analysis/garmin_tokens/users
+sudo mkdir -p /var/lib/motion-analysis/garmin_sync
+sudo chown -R $USER:$USER /var/lib/motion-analysis
+```
+
+Production `.env` values:
+
+```text
+GARMIN_PYTHON_PATH=python3
+GARMIN_DOWNLOAD_SCRIPT=/var/www/motion-analysis/database/scripts/download_garmin_connect.py
+GARMIN_IMPORT_SCRIPT=/var/www/motion-analysis/database/scripts/import_fit_files.py
+GARMIN_TOKEN_BASE_DIR=/var/lib/motion-analysis/garmin_tokens/users
+GARMIN_SYNC_WORK_DIR=/var/lib/motion-analysis/garmin_sync
+GARMIN_JSON_MODE=summary
+GARMIN_SYNC_TIMEOUT_MS=900000
+```
+
+The Garmin password is never stored in MySQL. It is only used during
+`POST /api/sync/providers/garmin/authorize` to create Garmin token files under
+`GARMIN_TOKEN_BASE_DIR`. The same Garmin account can be bound again on a cloud
+deployment because local and cloud databases/token directories are separate.
+
+Avoid running frequent sync jobs for the same Garmin account from both local and
+cloud environments at the same time, because Garmin may rate-limit requests.
 
 ## Node Process
 

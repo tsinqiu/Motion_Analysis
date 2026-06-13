@@ -69,6 +69,23 @@ def dump_json(path: Path, payload: Any, force: bool) -> bool:
     return True
 
 
+def load_id_file(path: Path | None) -> set[str]:
+    if path is None:
+        return set()
+    if not path.exists():
+        return set()
+    text = path.read_text(encoding="utf-8-sig").strip()
+    if not text:
+        return set()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        payload = [line.strip() for line in text.splitlines()]
+    if not isinstance(payload, list):
+        raise SystemExit("--skip-activity-ids-file must contain a JSON array or one id per line")
+    return {str(item).strip() for item in payload if str(item).strip()}
+
+
 def fetch_optional(label: str, func):
     try:
         return func()
@@ -182,13 +199,23 @@ def login(token_dir: Path, is_cn: bool) -> Garmin:
         except Exception as exc:
             print(f"Cached Garmin token could not be used: {exc}")
 
-    email = os.getenv("GARMIN_EMAIL") or input("Garmin email: ").strip()
-    password = os.getenv("GARMIN_PASSWORD") or getpass.getpass("Garmin password: ")
+    non_interactive = os.getenv("GARMIN_NON_INTERACTIVE") == "1"
+    email = os.getenv("GARMIN_EMAIL")
+    password = os.getenv("GARMIN_PASSWORD")
+    if non_interactive and (not email or not password):
+        raise SystemExit("Garmin credentials are required when cached tokens cannot be used.")
+    email = email or input("Garmin email: ").strip()
+    password = password or getpass.getpass("Garmin password: ")
+    mfa_code = os.getenv("GARMIN_MFA_CODE")
+    if non_interactive and mfa_code is None:
+        prompt_mfa = lambda: (_ for _ in ()).throw(SystemExit("Garmin MFA code is required."))
+    else:
+        prompt_mfa = lambda: mfa_code or input("Garmin MFA code: ").strip()
     client = Garmin(
         email=email,
         password=password,
         is_cn=is_cn,
-        prompt_mfa=lambda: input("Garmin MFA code: ").strip(),
+        prompt_mfa=prompt_mfa,
     )
     try:
         client.login(str(token_dir))
@@ -314,6 +341,9 @@ def main() -> None:
     parser.add_argument("--retries", type=int, default=2, help="Retries for Garmin 429 rate-limit responses.")
     parser.add_argument("--force", action="store_true", help="Overwrite existing JSON/FIT files.")
     parser.add_argument("--cn", action="store_true", help="Use Garmin China endpoint.")
+    parser.add_argument("--login-only", action="store_true", help="Only validate login/token cache, then exit.")
+    parser.add_argument("--skip-activity-ids-file", type=Path, help="JSON array or newline file of Garmin activity ids to skip.")
+    parser.add_argument("--summary-out", type=Path, help="Write a machine-readable download summary JSON file.")
     args = parser.parse_args()
 
     if args.limit <= 0:
@@ -330,6 +360,13 @@ def main() -> None:
     json_dir.mkdir(parents=True, exist_ok=True)
 
     client = login(args.token_dir, args.cn)
+    if args.login_only:
+        print("Garmin login ok.")
+        if args.summary_out:
+            args.summary_out.parent.mkdir(parents=True, exist_ok=True)
+            dump_json(args.summary_out, {"login": "ok"}, force=True)
+        return
+
     if args.start_date:
         end_date = args.end_date or datetime.now().strftime("%Y-%m-%d")
         activities = fetch_activities_by_date_chunks(
@@ -345,15 +382,23 @@ def main() -> None:
         activities = fetch_activities(client, args.limit, args.batch_size, args.activity_type)
 
     print(f"Found {len(activities)} activities.")
+    skip_activity_ids = load_id_file(args.skip_activity_ids_file)
     downloaded_json = 0
     downloaded_fit = 0
     skipped = 0
+    skipped_known = 0
+    downloaded_activity_ids: list[str] = []
 
     for index, item in enumerate(activities, start=1):
         activity_id = get_activity_id(item)
         if not activity_id:
             print(f"[{index}/{len(activities)}] skipped activity without id")
             skipped += 1
+            continue
+
+        if activity_id in skip_activity_ids:
+            print(f"[{index}/{len(activities)}] skipped known activity {activity_id}")
+            skipped_known += 1
             continue
 
         stem = output_stem(item, activity_id)
@@ -390,14 +435,31 @@ def main() -> None:
             else:
                 skipped += 1
 
+        downloaded_activity_ids.append(activity_id)
         if args.sleep > 0 and index < len(activities):
             time.sleep(args.sleep)
 
     print(
-        f"Done. json={downloaded_json}, fit={downloaded_fit}, skipped_existing_or_missing={skipped}"
+        f"Done. json={downloaded_json}, fit={downloaded_fit}, skipped_existing_or_missing={skipped}, skipped_known={skipped_known}"
     )
     print(f"JSON dir: {json_dir}")
     print(f"FIT dir: {fit_dir}")
+    if args.summary_out:
+        args.summary_out.parent.mkdir(parents=True, exist_ok=True)
+        dump_json(
+            args.summary_out,
+            {
+                "found": len(activities),
+                "downloadedJson": downloaded_json,
+                "downloadedFit": downloaded_fit,
+                "skippedExistingOrMissing": skipped,
+                "skippedKnown": skipped_known,
+                "downloadedActivityIds": downloaded_activity_ids,
+                "jsonDir": str(json_dir),
+                "fitDir": str(fit_dir),
+            },
+            force=True,
+        )
 
 
 if __name__ == "__main__":

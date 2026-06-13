@@ -32,6 +32,14 @@ function resolveBackendPath(value, fallback) {
   return path.resolve(__dirname, '..', target);
 }
 
+function resolveProjectPath(value, fallback) {
+  const target = value || fallback;
+  if (path.isAbsolute(target)) {
+    return target;
+  }
+  return path.resolve(__dirname, '..', '..', target);
+}
+
 const serverPort = parseInteger(process.env.PORT, 8080);
 
 const config = {
@@ -73,6 +81,32 @@ const config = {
     modelPath:
       resolveBackendPath(process.env.ML_MODEL_PATH, 'ml/models/running_model.joblib'),
     timeoutMs: parseInteger(process.env.ML_TIMEOUT_MS, 10000)
+  },
+  garmin: {
+    pythonPath: process.env.GARMIN_PYTHON_PATH || process.env.ML_PYTHON_PATH || 'python',
+    downloadScriptPath: resolveProjectPath(
+      process.env.GARMIN_DOWNLOAD_SCRIPT,
+      'database/scripts/download_garmin_connect.py'
+    ),
+    importScriptPath: resolveProjectPath(
+      process.env.GARMIN_IMPORT_SCRIPT,
+      'database/scripts/import_fit_files.py'
+    ),
+    tokenBaseDir: resolveProjectPath(
+      process.env.GARMIN_TOKEN_BASE_DIR,
+      'database/.garmin_tokens/users'
+    ),
+    syncWorkDir: resolveProjectPath(
+      process.env.GARMIN_SYNC_WORK_DIR,
+      'database/data/garmin_sync'
+    ),
+    jsonMode: process.env.GARMIN_JSON_MODE || 'summary',
+    chunkDays: parseInteger(process.env.GARMIN_CHUNK_DAYS, 14),
+    chunkSleepSeconds: Number(process.env.GARMIN_CHUNK_SLEEP_SECONDS ?? 10),
+    sleepSeconds: Number(process.env.GARMIN_SLEEP_SECONDS ?? 1.5),
+    extraSleepSeconds: Number(process.env.GARMIN_EXTRA_SLEEP_SECONDS ?? 0.5),
+    retries: parseInteger(process.env.GARMIN_RETRIES, 2),
+    timeoutMs: parseInteger(process.env.GARMIN_SYNC_TIMEOUT_MS, 15 * 60 * 1000)
   }
 };
 
