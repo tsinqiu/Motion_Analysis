@@ -22,6 +22,10 @@ function publicUser(row) {
 }
 
 function signToken(user) {
+  if (!config.auth.jwtSecret) {
+    throw new ApiError(500, 'JWT_SECRET is not configured', 'AUTH_NOT_CONFIGURED');
+  }
+
   return jwt.sign(
     {
       sub: String(user.id),
@@ -120,6 +124,10 @@ async function verifyToken(token) {
 }
 
 async function ensureAdminUser({ username, email, password } = config.auth.admin) {
+  if (!password) {
+    throw new ApiError(500, 'ADMIN_PASSWORD is not configured', 'AUTH_NOT_CONFIGURED');
+  }
+
   const existing = await findByEmail(email);
   if (existing) {
     if (existing.role !== 'admin') {

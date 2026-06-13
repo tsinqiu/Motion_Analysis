@@ -7,7 +7,7 @@ const { optionalAuthenticate } = require('../middleware/authMiddleware');
 const statsCache = require('../cache/statsCache');
 const { sendData } = require('../response');
 
-const TRAINING_RANGES = ['3m', '6m', '1y'];
+const TRAINING_RANGES = ['42d', '3m', '6m', '1y', '2y'];
 const OWNER_FILTERS = ['all', 'admin', 'mine'];
 const SOURCE_FILTERS = ['garmin_import', 'manual_upload'];
 

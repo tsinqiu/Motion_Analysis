@@ -10,8 +10,24 @@ const createTrainingRouter = require('./routes/trainingRoutes');
 const createDashboardRouter = require('./routes/dashboardRoutes');
 const createMlRouter = require('./routes/mlRoutes');
 const createManualActivityRouter = require('./routes/manualActivityRoutes');
+const createSyncRouter = require('./routes/syncRoutes');
+const createCommunityRouter = require('./routes/communityRoutes');
+const createExploreRouter = require('./routes/exploreRoutes');
+const createSettingsRouter = require('./routes/settingsRoutes');
+const createWorkoutRouter = require('./routes/workoutRoutes');
 
-function createApp({ healthService, activityService, mlService, authService, manualActivityService } = {}) {
+function createApp({
+  healthService,
+  activityService,
+  mlService,
+  authService,
+  manualActivityService,
+  syncService,
+  communityService,
+  exploreService,
+  settingsService,
+  workoutService
+} = {}) {
   const app = express();
 
   app.use(
@@ -36,6 +52,11 @@ function createApp({ healthService, activityService, mlService, authService, man
   app.use('/api', createDashboardRouter(activityService, authService));
   app.use('/api', createManualActivityRouter({ manualActivityService, authService }));
   app.use('/api', createMlRouter(mlService));
+  app.use('/api', createSyncRouter({ syncService, authService }));
+  app.use('/api', createCommunityRouter({ communityService, authService }));
+  app.use('/api', createExploreRouter(exploreService, authService));
+  app.use('/api', createSettingsRouter({ settingsService, authService }));
+  app.use('/api', createWorkoutRouter({ workoutService, authService }));
 
   app.use('/api', (req, res) => {
     res.status(404).json({ error: { code: 'ROUTE_NOT_FOUND', message: 'route not found' } });

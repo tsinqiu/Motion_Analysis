@@ -29,8 +29,7 @@ BASE_TYPES = {
     0x0D: (4, "i", -0x80000000),
     0x0E: (4, "I", 0xFFFFFFFF),
     0x0F: (8, "q", -0x8000000000000000),
-    0x10: (8, "Q", 0xFFFFFFFFFFFFFFFF),
-    0x11: (8, "Q", 0xFFFFFFFFFFFFFFFF),
+    0x10: (8, "Q", 0x0000000000000000),
     0x13: (1, "B", 0xFF),
 }
 

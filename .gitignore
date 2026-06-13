@@ -26,3 +26,11 @@ Thumbs.db
 *.ldf
 *.bak
 *.tmp
+*.dump
+*.sql.gz
+
+# Motion Analysis local data and generated artifacts
+database/data/
+database/.garmin_tokens/
+database/sql/02_import_data.sql
+backend/ml/models/

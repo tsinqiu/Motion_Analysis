@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import pickle
 import sys
 from pathlib import Path
 
@@ -12,13 +13,41 @@ import numpy as np
 RISK_ORDER = {"low": 0, "medium": 1, "high": 2}
 
 
+def load_payload() -> dict[str, object]:
+    raw = sys.stdin.read() or "{}"
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"invalid JSON payload: {error.msg}") from error
+
+    if not isinstance(payload, dict):
+        raise ValueError("prediction payload must be a JSON object")
+
+    return payload
+
+
+def numeric_feature(payload: dict[str, object], name: str) -> float:
+    if name not in payload:
+        raise ValueError(f"missing required feature: {name}")
+
+    try:
+        value = float(payload[name])
+    except (TypeError, ValueError) as error:
+        raise ValueError(f"invalid numeric feature: {name}") from error
+
+    if not np.isfinite(value):
+        raise ValueError(f"invalid numeric feature: {name}")
+
+    return value
+
+
 def risk_from_features(load_level: str, payload: dict[str, float]) -> str:
     score = RISK_ORDER.get(load_level, 1)
 
-    avg_hr = float(payload.get("avgHeartRateBpm", 0))
-    max_hr = float(payload.get("maxHeartRateBpm", 0))
-    duration = float(payload.get("durationS", 0))
-    elevation_gain = float(payload.get("elevationGainM", 0))
+    avg_hr = payload.get("avgHeartRateBpm", 0)
+    max_hr = payload.get("maxHeartRateBpm", 0)
+    duration = payload.get("durationS", 0)
+    elevation_gain = payload.get("elevationGainM", 0)
 
     if avg_hr >= 165 or max_hr >= 190:
         score += 1
@@ -49,18 +78,37 @@ def main() -> None:
     parser.add_argument("--model", required=True)
     args = parser.parse_args()
 
-    payload = json.loads(sys.stdin.read() or "{}")
-    bundle = joblib.load(Path(args.model))
-    feature_names = bundle["featureNames"]
-    model = bundle["pipeline"]
+    try:
+        payload = load_payload()
+        bundle = joblib.load(Path(args.model))
+        feature_names = bundle["featureNames"]
+        model = bundle["pipeline"]
 
-    values = np.array([[float(payload[name]) for name in feature_names]], dtype=float)
-    probabilities = model.predict_proba(values)[0]
-    classes = list(model.named_steps["classifier"].classes_)
-    best_index = int(np.argmax(probabilities))
-    load_level = str(classes[best_index])
-    confidence = float(probabilities[best_index])
-    fatigue_risk = risk_from_features(load_level, payload)
+        normalized_payload = {
+            name: numeric_feature(payload, name)
+            for name in feature_names
+        }
+        values = np.array([[normalized_payload[name] for name in feature_names]], dtype=float)
+        probabilities = model.predict_proba(values)[0]
+        classes = list(model.named_steps["classifier"].classes_)
+        best_index = int(np.argmax(probabilities))
+        load_level = str(classes[best_index])
+        confidence = float(probabilities[best_index])
+        fatigue_risk = risk_from_features(load_level, normalized_payload)
+    except (
+        KeyError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        FileNotFoundError,
+        OSError,
+        pickle.UnpicklingError,
+    ) as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1) from error
+    except Exception as error:
+        print(f"unexpected prediction error: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
 
     result = {
         "predictedTrainingLoadLevel": load_level,

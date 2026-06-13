@@ -22,5 +22,10 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await db.closePool();
+    try {
+      await db.closePool();
+    } catch (error) {
+      console.error(`Failed to close database pool: ${error.message}`);
+      process.exitCode = 1;
+    }
   });

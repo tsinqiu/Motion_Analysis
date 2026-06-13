@@ -123,6 +123,9 @@ GET /activities?owner=mine
 GET /stats/*?owner=mine
 GET /training/load-balance?owner=mine
 GET /dashboard/overview?owner=mine
+GET /settings
+GET /sync/providers
+POST /workouts
 ```
 
 ## 页面到接口映射
@@ -153,14 +156,17 @@ GET /activities?page=1&page_size=20
 
 ```text
 activity_type=running
+activity_type=all
 start_date=2026-06-01
 end_date=2026-06-30
 keyword=无锡
-source=garmin_import|manual_upload
+source=garmin_import|manual_upload|live_workout
 owner=all|admin|mine
 sort_by=local_start_time|distance_m|duration_s|avg_heart_rate_bpm|max_heart_rate_bpm|avg_pace|activity_training_load
 sort_order=asc|desc
 ```
+
+`activity_type=all` is accepted by the backend and means no activity type filter. Activity list and detail responses include the fields needed by the current frontend normalizer, including distance, duration, moving duration, calories, speed, heart rate, cadence, power, elevation, training load, data source, manual flag, and owner username.
 
 运动详情页：
 
@@ -211,6 +217,8 @@ body_battery_delta
 3m
 6m
 1y
+42d
+2y
 ```
 
 没有数据来源的指标不会返回假数据。例如 `left_right_balance` 当前会返回 `UNSUPPORTED_METRIC`。
@@ -239,6 +247,7 @@ GET /stats/calendar?month=2026-06
 ```
 
 `data.days` 中每天都有一条记录；无运动日期 `activityCount=0`，`activities=[]`。
+每一天也包含 `totals`，便于前端后续不再本地聚合。
 
 最佳记录页：
 
@@ -251,10 +260,12 @@ GET /stats/personal-bests
 ```text
 running
 cycling
+swimming
+steps
 overall
 ```
 
-数据不足的 PB 项不会出现在数组里，前端不要为缺失项硬渲染空卡片。
+数据不足的 PB 项不会出现在数组里，缺少可靠数据的分组返回空数组；后端不会返回假记录。
 
 手动上传页：
 
@@ -269,6 +280,60 @@ DELETE /manual-activities/:id
 ```text
 POST /ml/running-prediction
 ```
+
+同步页：
+
+```text
+GET  /sync/providers
+PUT  /sync/providers/:provider/settings
+POST /sync/providers/:provider/authorize
+POST /sync/providers/:provider/disconnect
+POST /sync/jobs
+GET  /sync/jobs
+GET  /sync/logs
+```
+
+当前后端只保存授权状态、同步设置、任务和日志；第三方 adapter 未配置时返回 `adapterStatus=not_configured`，不会导入假活动。
+
+运动圈：
+
+```text
+GET    /community/posts
+POST   /community/posts
+GET    /community/posts/:id/comments
+POST   /community/posts/:id/comments
+POST   /community/posts/:id/like
+DELETE /community/posts/:id/like
+POST   /community/posts/:id/share
+```
+
+探索：
+
+```text
+GET /explore/articles
+GET /explore/articles/:id
+GET /explore/recommendations
+```
+
+用户设置：
+
+```text
+GET /settings
+PUT /settings
+```
+
+真实开始运动：
+
+```text
+POST /workouts
+POST /workouts/:id/track-points
+POST /workouts/:id/pause
+POST /workouts/:id/resume
+POST /workouts/:id/finish
+POST /workouts/:id/cancel
+```
+
+`finish` 后会生成真实活动，来源为 `live_workout`，后续可用活动详情、轨迹、心率、速度接口查看。
 
 ## 前端显示建议
 

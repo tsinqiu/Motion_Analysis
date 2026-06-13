@@ -39,14 +39,19 @@ $plainPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
 $defaultsFile = Join-Path $env:TEMP ("motion_analysis_mysql_{0}.cnf" -f ([Guid]::NewGuid().ToString("N")))
 
 try {
-    @"
+    $defaultsContent = @"
 [client]
 user=$User
 password=$plainPassword
 host=$HostName
 port=$Port
 default-character-set=utf8mb4
-"@ | Set-Content -LiteralPath $defaultsFile -Encoding ASCII
+"@
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($defaultsFile, $defaultsContent, $utf8NoBom)
+    $plainPassword = $null
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
 
     Invoke-MysqlScript -ScriptPath $schemaPath -Label "Applying schema"
 
@@ -64,6 +69,9 @@ UNION ALL SELECT 'Events', COUNT(*) FROM Events
 UNION ALL SELECT 'ActivitySummaries', COUNT(*) FROM ActivitySummaries
 UNION ALL SELECT 'ActivityZones', COUNT(*) FROM ActivityZones;
 "
+    if ($LASTEXITCODE -ne 0) {
+        throw "Verification query failed with exit code $LASTEXITCODE"
+    }
 }
 finally {
     if (Test-Path -LiteralPath $defaultsFile) {
