@@ -1,0 +1,56 @@
+const express = require('express');
+const defaultActivityService = require('../services/activityService');
+const defaultAuthService = require('../services/authService');
+const { ApiError } = require('../errors');
+const { asyncHandler, parseActivityType, parseEnum, parseKeyword } = require('../http');
+const { optionalAuthenticate } = require('../middleware/authMiddleware');
+const statsCache = require('../cache/statsCache');
+const { sendData } = require('../response');
+
+const OWNER_FILTERS = ['all', 'admin', 'mine'];
+const SOURCE_FILTERS = ['garmin_import', 'manual_upload'];
+
+function parseDashboardFilters(query, user) {
+  const owner = parseEnum(query.owner, OWNER_FILTERS, 'owner', 'all');
+  if (owner === 'mine' && !user) {
+    throw new ApiError(401, 'login is required to filter your activities', 'AUTH_REQUIRED');
+  }
+
+  return {
+    activityType: parseActivityType(query.activity_type),
+    keyword: parseKeyword(query.keyword),
+    source: parseEnum(query.source, SOURCE_FILTERS, 'source', undefined),
+    owner,
+    ownerUserId: user?.id
+  };
+}
+
+async function sendCached(req, res, loader) {
+  const cached = statsCache.get(req);
+  if (cached) {
+    sendData(res, cached, { cache: { hit: true } });
+    return;
+  }
+
+  const data = await loader();
+  statsCache.set(req, data);
+  sendData(res, data, { cache: { hit: false } });
+}
+
+function createDashboardRouter(activityService = defaultActivityService, authService = defaultAuthService) {
+  const router = express.Router();
+
+  router.get(
+    '/dashboard/overview',
+    optionalAuthenticate(authService),
+    asyncHandler(async (req, res) => {
+      await sendCached(req, res, () =>
+        activityService.getDashboardOverview(parseDashboardFilters(req.query, req.user))
+      );
+    })
+  );
+
+  return router;
+}
+
+module.exports = createDashboardRouter;
