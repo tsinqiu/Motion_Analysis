@@ -1729,6 +1729,25 @@ test('activityService activity type stats avoids MySQL 8 window functions', asyn
   }
 });
 
+test('activityService laps avoids MySQL 8 window functions', async () => {
+  const originalQuery = db.query;
+  let capturedSql;
+  db.query = async (sql) => {
+    capturedSql = sql;
+    return [];
+  };
+
+  try {
+    const rows = await activityServiceModule.getLaps(1);
+
+    assert.deepEqual(rows, []);
+    assert.doesNotMatch(capturedSql, /OVER\s*\(/i);
+    assert.doesNotMatch(capturedSql, /^\s*WITH\s+/i);
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
 test('workoutService finish rejects workouts without track points', async () => {
   const originalTransaction = db.transaction;
   db.transaction = async (handler) => {

@@ -413,47 +413,41 @@ async function getSpeedSeries(activityId, { limit, offset }) {
 async function getLaps(activityId) {
   return db.query(
     `
-      WITH lap_ranges AS (
-        SELECT
-          l.*,
-          COALESCE(
-            SUM(l.total_distance_m) OVER (
-              ORDER BY l.lap_index
-              ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-            ),
-            0
-          ) AS start_distance_m,
-          SUM(l.total_distance_m) OVER (
-            ORDER BY l.lap_index
-            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-          ) AS end_distance_m
-        FROM Laps l
-        WHERE l.activity_id = ?
-      )
       SELECT
-        lr.lap_index AS lapIndex,
-        lr.start_time_utc AS startTimeUtc,
-        lr.total_distance_m AS totalDistanceM,
-        lr.total_timer_time_s AS totalTimerTimeS,
-        lr.avg_speed_mps AS avgSpeedMps,
-        COALESCE(NULLIF(lr.avg_heart_rate_bpm, 0), ROUND(AVG(NULLIF(tp.heart_rate_bpm, 0)))) AS avgHeartRateBpm,
-        lr.avg_power_w AS avgPowerW
-      FROM lap_ranges lr
+        l.lap_index AS lapIndex,
+        l.start_time_utc AS startTimeUtc,
+        l.total_distance_m AS totalDistanceM,
+        l.total_timer_time_s AS totalTimerTimeS,
+        l.avg_speed_mps AS avgSpeedMps,
+        COALESCE(NULLIF(l.avg_heart_rate_bpm, 0), ROUND(AVG(NULLIF(tp.heart_rate_bpm, 0)))) AS avgHeartRateBpm,
+        l.avg_power_w AS avgPowerW
+      FROM Laps l
       LEFT JOIN TrackPoints tp
-        ON tp.activity_id = lr.activity_id
-        AND tp.distance_m > lr.start_distance_m
-        AND tp.distance_m <= lr.end_distance_m
+        ON tp.activity_id = l.activity_id
+        AND tp.distance_m > COALESCE((
+          SELECT SUM(prev.total_distance_m)
+          FROM Laps prev
+          WHERE prev.activity_id = l.activity_id
+            AND prev.lap_index < l.lap_index
+        ), 0)
+        AND tp.distance_m <= COALESCE((
+          SELECT SUM(prev.total_distance_m)
+          FROM Laps prev
+          WHERE prev.activity_id = l.activity_id
+            AND prev.lap_index <= l.lap_index
+        ), l.total_distance_m)
         AND tp.heart_rate_bpm IS NOT NULL
         AND tp.heart_rate_bpm > 0
+      WHERE l.activity_id = ?
       GROUP BY
-        lr.lap_index,
-        lr.start_time_utc,
-        lr.total_distance_m,
-        lr.total_timer_time_s,
-        lr.avg_speed_mps,
-        lr.avg_heart_rate_bpm,
-        lr.avg_power_w
-      ORDER BY lr.lap_index
+        l.lap_index,
+        l.start_time_utc,
+        l.total_distance_m,
+        l.total_timer_time_s,
+        l.avg_speed_mps,
+        l.avg_heart_rate_bpm,
+        l.avg_power_w
+      ORDER BY l.lap_index
     `,
     [activityId]
   );
