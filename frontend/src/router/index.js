@@ -17,7 +17,6 @@ import Statistics from '@/views/Statistics.vue'
 import Sync from '@/views/Sync.vue'
 import Today from '@/views/Today.vue'
 import TrainingLoad from '@/views/TrainingLoad.vue'
-import Trends from '@/views/Trends.vue'
 import {
   authSession,
   hasAuthToken,
@@ -70,9 +69,7 @@ const routes = [
   },
   {
     path: '/trends',
-    name: 'trends',
-    component: Trends,
-    meta: { title: '趋势', requiresAuth: true },
+    redirect: '/statistics',
   },
   {
     path: '/training-load',

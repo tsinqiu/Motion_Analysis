@@ -652,6 +652,27 @@ export async function getTrackPoints(id, params = {}) {
   return allPoints
 }
 
+async function getPaginatedTrackSeries(id, path, fallbackSeries, params = {}) {
+  if (useMockData()) return fallbackSeries.map(normalizeTrackPoint)
+
+  const pageSize = Math.min(Number(params.limit) || 10000, 10000)
+  let offset = Number(params.offset) || 0
+  const allPoints = []
+
+  while (true) {
+    const envelope = await requestEnvelope(`/activities/${id}/${path}`, fallbackSeries, normalizeTrackPoint, {
+      params: { ...params, limit: pageSize, offset },
+    })
+    const page = envelope.data || []
+    allPoints.push(...page)
+
+    if (page.length < pageSize) break
+    offset += pageSize
+  }
+
+  return allPoints
+}
+
 export async function getHeartRateSeries(id, params = {}) {
   const series = trackPoints
     .filter((point) => point.heart_rate_bpm !== null)
@@ -660,12 +681,7 @@ export async function getHeartRateSeries(id, params = {}) {
       heart_rate_bpm: point.heart_rate_bpm,
     }))
 
-  if (useMockData()) return series.map(normalizeTrackPoint)
-
-  const envelope = await requestEnvelope(`/activities/${id}/heart-rate`, series, normalizeTrackPoint, {
-    params: { limit: 2000, offset: 0, ...params },
-  })
-  return envelope.data || []
+  return getPaginatedTrackSeries(id, 'heart-rate', series, params)
 }
 
 export async function getSpeedSeries(id, params = {}) {
@@ -676,12 +692,7 @@ export async function getSpeedSeries(id, params = {}) {
       speed_mps: point.speed_mps,
     }))
 
-  if (useMockData()) return series.map(normalizeTrackPoint)
-
-  const envelope = await requestEnvelope(`/activities/${id}/speed`, series, normalizeTrackPoint, {
-    params: { limit: 2000, offset: 0, ...params },
-  })
-  return envelope.data || []
+  return getPaginatedTrackSeries(id, 'speed', series, params)
 }
 
 export async function getLaps(id) {

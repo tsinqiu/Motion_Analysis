@@ -1779,6 +1779,31 @@ tr:hover td {
   font-weight: 800;
 }
 
+.lap-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+}
+
+.lap-mode-toggle button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.lap-mode-toggle button.active {
+  background: var(--green);
+  color: #06130d;
+}
+
 .type-pill {
   display: inline-flex;
   min-height: 26px;
@@ -1871,8 +1896,8 @@ html[data-theme="night"] .route-map .leaflet-control-attribution {
 
 .zone-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: 1fr;
+  gap: 28px;
 }
 
 .zone-block-heading {
@@ -1880,12 +1905,12 @@ html[data-theme="night"] .route-map .leaflet-control-attribution {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .zone-block-heading h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 24px;
 }
 
 .zone-block-heading span {
@@ -1895,19 +1920,19 @@ html[data-theme="night"] .route-map .leaflet-control-attribution {
 
 .zone-list {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .zone-row {
   display: grid;
-  grid-template-columns: 10px minmax(88px, 120px) minmax(120px, 1fr) 58px 56px;
+  grid-template-columns: 14px minmax(150px, 190px) minmax(260px, 1fr) 92px 78px;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
 .zone-dot {
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   border-radius: 999px;
 }
 
@@ -1915,7 +1940,7 @@ html[data-theme="night"] .route-map .leaflet-control-attribution {
 .zone-time,
 .zone-percent {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1926,7 +1951,7 @@ html[data-theme="night"] .route-map .leaflet-control-attribution {
 }
 
 .zone-bar {
-  height: 8px;
+  height: 12px;
   overflow: hidden;
   border-radius: 999px;
   background: color-mix(in srgb, var(--muted) 14%, transparent);
@@ -2759,6 +2784,21 @@ html[data-theme="night"] .input-with-icon {
 
   .account-summary .secondary-link {
     margin-left: 0;
+  }
+
+  .zone-row {
+    grid-template-columns: 12px minmax(112px, 138px) minmax(120px, 1fr) 64px 54px;
+    gap: 8px;
+  }
+
+  .zone-label,
+  .zone-time,
+  .zone-percent {
+    font-size: 13px;
+  }
+
+  .zone-bar {
+    height: 10px;
   }
 
   .api-banner code {

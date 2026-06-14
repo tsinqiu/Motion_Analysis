@@ -94,9 +94,7 @@ const sportIcon = computed(() => ({
 }[sportClass.value] || Footprints))
 
 const displayTitle = computed(() => (
-  props.activity.is_manual
-    ? props.activity.activity_name || props.activity.location_name || props.activity.activity_type
-    : props.activity.location_name || props.activity.activity_name || props.activity.activity_type
+  props.activity.activity_name || props.activity.location_name || props.activity.activity_type
 ))
 
 const speedLabel = computed(() => (sportClass.value === 'ride' ? '速度' : '配速'))

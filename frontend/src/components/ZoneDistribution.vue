@@ -11,7 +11,6 @@
       <div class="zone-block">
         <div class="zone-block-heading">
           <h3>心率区间</h3>
-          <span>{{ formatDuration(totalDuration(heartRateRows)) }}</span>
         </div>
         <div class="zone-list">
           <div v-for="row in heartRateRows" :key="row.label" class="zone-row">
@@ -29,7 +28,6 @@
       <div v-if="powerRows.length" class="zone-block">
         <div class="zone-block-heading">
           <h3>功率区间</h3>
-          <span>{{ formatDuration(totalDuration(powerRows)) }}</span>
         </div>
         <div class="zone-list">
           <div v-for="row in powerRows" :key="row.label" class="zone-row">
@@ -116,10 +114,6 @@ function buildRows(zones, field) {
     durationS: durations[index],
     percent: total ? (durations[index] / total) * 100 : 0,
   }))
-}
-
-function totalDuration(rows) {
-  return rows.reduce((sum, row) => sum + row.durationS, 0)
 }
 
 const heartRateRows = computed(() => buildRows(HEART_RATE_ZONES, 'heart_rate_bpm'))

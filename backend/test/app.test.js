@@ -570,6 +570,43 @@ test('GET /api/stats/timeline validates group_by', async () => {
   assert.equal(response.body.error.code, 'INVALID_QUERY');
 });
 
+test('GET /api/stats/timeline passes range filters', async () => {
+  statsCache.clear();
+  let captured;
+  const app = buildApp({
+    activityService: {
+      listActivities: async () => ({ items: [], page: 1, pageSize: 50, total: 0, totalPages: 0 }),
+      getActivityById: async () => null,
+      activityExists: async () => true,
+      getTrackPoints: async () => [],
+      getHeartRateSeries: async () => [],
+      getSpeedSeries: async () => [],
+      getLaps: async () => [],
+      getZones: async () => [],
+      getActivityTypeStats: async () => [],
+      getSummaryStats: async () => ({}),
+      getTimelineStats: async (filters) => {
+        captured = filters;
+        return [];
+      },
+      getMetricTrend: async () => [],
+      getCalendarStats: async () => ({ month: '2026-06', days: [] }),
+      getHeartRateZones: async () => [],
+      getLoadBalance: async () => [],
+      getPersonalBests: async () => ({ running: [], cycling: [], overall: [] }),
+      getDashboardOverview: async () => ({})
+    }
+  });
+
+  const response = await request(app).get('/api/stats/timeline?range=month&date=2026-06&group_by=day');
+
+  assert.equal(response.status, 200);
+  assert.equal(captured.range, 'month');
+  assert.equal(captured.date, '2026-06');
+  assert.equal(captured.groupBy, 'day');
+  statsCache.clear();
+});
+
 test('GET /api/stats/metric-trend returns trend points', async () => {
   statsCache.clear();
   let captured;

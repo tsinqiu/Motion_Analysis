@@ -674,7 +674,11 @@ async function getSummaryStats(filters) {
 }
 
 async function getTimelineStats({ groupBy, ...filters }) {
-  const activityFilters = buildActivityFilters(filters);
+  const resolvedFilters = {
+    ...filters,
+    ...resolveRangeDates(filters)
+  };
+  const activityFilters = buildActivityFilters(resolvedFilters);
   const periodExpression =
     groupBy === 'month'
       ? "DATE_FORMAT(a.local_start_time, '%Y-%m')"

@@ -55,13 +55,25 @@ function formatPower(value) {
   return power === null ? '--' : `${Math.round(power)} W`
 }
 
+const isRunning = computed(() => {
+  const type = props.activity?.activity_type || ''
+  const rawType = props.activity?.raw_activity_type || ''
+  return type.includes('跑步') || rawType.includes('running')
+})
+
+const maxSpeedItem = computed(() => (
+  isRunning.value
+    ? { label: '最快配速', value: formatPace(props.activity.max_speed_mps) }
+    : { label: '最高速度', value: formatSpeed(props.activity.max_speed_mps) }
+))
+
 const detailItems = computed(() => [
   { label: '总用时', value: formatClockDuration(props.activity.total_timer_time_s) },
   { label: '移动时间', value: formatClockDuration(props.activity.total_moving_time_s) },
   { label: '总历时', value: formatClockDuration(props.activity.total_elapsed_time_s) },
   { label: '卡路里', value: formatCalories(props.activity.total_calories) },
   { label: '平均配速', value: formatPace(props.activity.avg_speed_mps) },
-  { label: '最高速度', value: formatSpeed(props.activity.max_speed_mps) },
+  maxSpeedItem.value,
   { label: '平均心率', value: formatBpm(props.activity.avg_heart_rate_bpm) },
   { label: '最高心率', value: formatBpm(props.activity.max_heart_rate_bpm) },
   { label: '平均步频', value: formatCadence(props.activity.avg_cadence) },

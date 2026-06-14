@@ -56,7 +56,7 @@
         <RoutePreview :points="trackPoints" />
         <ZoneDistribution :points="trackPoints" />
         <SessionDetails :activity="activity" />
-        <LapTable :laps="laps" />
+        <LapTable :activity="activity" :laps="laps" />
       </div>
 
       <section class="dark-panel">
@@ -215,6 +215,7 @@ function formatAscent(value) {
 }
 
 function formatTrainingLoad(value) {
+  if (value === null || value === undefined || value === '') return '--'
   const load = Number(value)
   return Number.isFinite(load) ? load.toFixed(1) : '--'
 }
@@ -263,13 +264,43 @@ function elapsedLabels(source) {
   })
 }
 
+function niceStep(value) {
+  if (!Number.isFinite(value) || value <= 0) return 1
+
+  const magnitude = 10 ** Math.floor(Math.log10(value))
+  const normalized = value / magnitude
+  if (normalized <= 1) return magnitude
+  if (normalized <= 2) return 2 * magnitude
+  if (normalized <= 5) return 5 * magnitude
+  return 10 * magnitude
+}
+
+function niceAxisMin(values) {
+  if (!values.length) return undefined
+
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  if (min >= 0) return 0
+
+  const span = Math.max(max - min, Math.abs(min), 1)
+  const step = niceStep(span / 5)
+  return Math.floor(min / step) * step
+}
+
 function createLineOption(name, unit, color, source, field, options = {}) {
   const values = source.map((point) => (
     options.valueMapper ? options.valueMapper(point) : point[field]
   ))
+  const numericValues = values
+    .filter((value) => value !== null && value !== undefined)
+    .map(Number)
+    .filter(Number.isFinite)
+  const axisMin = options.yAxis?.min ?? niceAxisMin(numericValues)
+  const areaOrigin = axisMin ?? 'auto'
   const yAxis = {
     type: 'value',
     name: unit,
+    min: axisMin,
     axisLabel: { color: '#9ca3af' },
     splitLine: { lineStyle: { color: '#1f2937' } },
     ...options.yAxis,
@@ -308,7 +339,7 @@ function createLineOption(name, unit, color, source, field, options = {}) {
         smooth: true,
         symbolSize: 7,
         data: values,
-        areaStyle: options.showArea === false ? undefined : { opacity: 0.12 },
+        areaStyle: options.showArea === false ? undefined : { opacity: 0.12, origin: areaOrigin },
       },
     ],
   }
