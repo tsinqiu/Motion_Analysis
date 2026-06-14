@@ -455,6 +455,10 @@ html[data-theme="night"] .hero-panel {
   min-width: 0;
 }
 
+.detail-grid > .chart-panel {
+  grid-column: 1 / -1;
+}
+
 .today-layout.single {
   grid-template-columns: 1fr;
 }
@@ -715,6 +719,26 @@ html[data-theme="night"] .hero-panel {
   display: block;
   margin-top: 6px;
   color: var(--faint);
+}
+
+.detail-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.detail-metrics .metric-card {
+  min-height: 126px;
+  padding: 22px 24px;
+}
+
+.detail-metrics .metric-label {
+  font-size: 15px;
+}
+
+.detail-metrics .metric-card strong {
+  margin-top: 12px;
+  font-size: 34px;
+  line-height: 1.05;
 }
 
 .activity-card {
@@ -1499,6 +1523,34 @@ tr:hover td {
   background: var(--panel-soft);
 }
 
+.lap-panel table {
+  min-width: 0;
+}
+
+.lap-panel th,
+.lap-panel td {
+  padding: 9px 12px;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.lap-panel th {
+  font-size: 13px;
+}
+
+.lap-panel tbody tr:nth-child(odd) td {
+  background: rgb(33 212 123 / 0.08);
+}
+
+.lap-panel tbody tr:hover td {
+  background: rgb(33 212 123 / 0.14);
+}
+
+.lap-panel td:nth-child(5) {
+  color: var(--red);
+  font-weight: 800;
+}
+
 .type-pill {
   display: inline-flex;
   min-height: 26px;
@@ -1583,6 +1635,114 @@ html[data-theme="night"] .route-map .leaflet-control-attribution {
 
 .route-endpoint-finish span {
   background: #ef4444;
+}
+
+.zone-panel {
+  overflow: hidden;
+}
+
+.zone-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.zone-block-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.zone-block-heading h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.zone-block-heading span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.zone-list {
+  display: grid;
+  gap: 12px;
+}
+
+.zone-row {
+  display: grid;
+  grid-template-columns: 10px minmax(88px, 120px) minmax(120px, 1fr) 58px 56px;
+  align-items: center;
+  gap: 10px;
+}
+
+.zone-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.zone-label,
+.zone-time,
+.zone-percent {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.zone-time,
+.zone-percent {
+  text-align: right;
+}
+
+.zone-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+.zone-bar span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+}
+
+.session-detail-panel {
+  overflow: hidden;
+}
+
+.session-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.session-detail-item {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+}
+
+.session-detail-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.session-detail-item strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
 .route-km-marker {
@@ -2225,6 +2385,14 @@ html[data-theme="night"] .input-with-icon {
   }
 
   .metric-picker.five-up {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .session-detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

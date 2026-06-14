@@ -172,14 +172,17 @@ export function normalizeActivity(row = {}) {
     total_distance_m: toNumber(distanceM),
     total_timer_time_s: toNumber(durationS),
     total_moving_time_s: toNumber(firstDefined(row.total_moving_time_s, row.movingDurationS, row.durationS)),
+    total_elapsed_time_s: toNumber(firstDefined(row.total_elapsed_time_s, row.elapsedDurationS, row.fitElapsedTimeS)),
     total_calories: toNumber(firstDefined(row.total_calories, row.calories)),
     avg_speed_mps: toNumber(avgSpeedMps),
     max_speed_mps: toNumber(firstDefined(row.max_speed_mps, row.maxSpeedMps)),
     avg_heart_rate_bpm: toNumber(firstDefined(row.avg_heart_rate_bpm, row.avgHeartRateBpm)),
     max_heart_rate_bpm: toNumber(firstDefined(row.max_heart_rate_bpm, row.maxHeartRateBpm)),
     avg_cadence: toNumber(firstDefined(row.avg_cadence, row.avgCadenceSpm, row.fitSingleLegCadence)),
+    max_cadence: toNumber(firstDefined(row.max_cadence, row.maxCadenceSpm)),
     avg_power_w: toNumber(firstDefined(row.avg_power_w, row.avgPowerW, row.normalizedPowerW)),
     max_power_w: toNumber(firstDefined(row.max_power_w, row.maxPowerW)),
+    normalized_power_w: toNumber(firstDefined(row.normalized_power_w, row.normalizedPowerW)),
     total_ascent_m: toNumber(firstDefined(row.total_ascent_m, row.elevationGainM)),
     total_descent_m: toNumber(firstDefined(row.total_descent_m, row.elevationLossM)),
     activity_training_load: toNumber(firstDefined(row.activity_training_load, row.activityTrainingLoad)),
@@ -201,6 +204,7 @@ export function normalizeTrackPoint(row = {}) {
     heart_rate_bpm: toNumber(firstDefined(row.heart_rate_bpm, row.heartRateBpm)),
     cadence: toNumber(firstDefined(row.cadence, row.fitSingleLegCadence)),
     power_w: toNumber(firstDefined(row.power_w, row.powerW)),
+    vertical_oscillation_mm: toNumber(firstDefined(row.vertical_oscillation_mm, row.verticalOscillationMm)),
   }
 }
 

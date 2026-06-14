@@ -36,6 +36,14 @@ let routeLayer = null
 let markerLayer = null
 
 const EARTH_RADIUS_M = 6371000
+const FALLBACK_ROUTE_COLOR = '#21d47b'
+const SPEED_COLOR_STOPS = [
+  { at: 0, color: [37, 99, 235] },
+  { at: 0.25, color: [6, 182, 212] },
+  { at: 0.5, color: [34, 197, 94] },
+  { at: 0.75, color: [245, 158, 11] },
+  { at: 1, color: [239, 68, 68] },
+]
 
 function toCoordinate(value) {
   if (value === null || value === undefined || value === '') return null
@@ -49,8 +57,66 @@ function toDistance(value) {
   return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : null
 }
 
+function toPositiveNumber(value) {
+  if (value === null || value === undefined || value === '') return null
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null
+}
+
+function toTimestamp(value) {
+  if (!value) return null
+  const timestamp = Date.parse(value)
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
 function toRadians(value) {
   return (value * Math.PI) / 180
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function interpolateColor(from, to, ratio) {
+  const safeRatio = clamp(ratio, 0, 1)
+  const [r, g, b] = from.map((value, index) =>
+    Math.round(value + (to[index] - value) * safeRatio),
+  )
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+function colorFromStops(ratio) {
+  const safeRatio = clamp(ratio, 0, 1)
+  const upperIndex = SPEED_COLOR_STOPS.findIndex((stop) => stop.at >= safeRatio)
+  if (upperIndex <= 0) {
+    return interpolateColor(SPEED_COLOR_STOPS[0].color, SPEED_COLOR_STOPS[0].color, 0)
+  }
+
+  const lower = SPEED_COLOR_STOPS[upperIndex - 1]
+  const upper = SPEED_COLOR_STOPS[upperIndex]
+  const span = upper.at - lower.at
+  const localRatio = span > 0 ? (safeRatio - lower.at) / span : 0
+  return interpolateColor(lower.color, upper.color, localRatio)
+}
+
+function quantile(values, ratio) {
+  if (!values.length) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  const index = (sorted.length - 1) * clamp(ratio, 0, 1)
+  const lower = Math.floor(index)
+  const upper = Math.ceil(index)
+  if (lower === upper) return sorted[lower]
+
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower)
+}
+
+function colorForSpeed(speedMps, minSpeedMps, maxSpeedMps) {
+  if (!Number.isFinite(speedMps) || speedMps <= 0) return FALLBACK_ROUTE_COLOR
+  if (!Number.isFinite(minSpeedMps) || !Number.isFinite(maxSpeedMps)) return FALLBACK_ROUTE_COLOR
+
+  const span = maxSpeedMps - minSpeedMps
+  const ratio = span > 0 ? (speedMps - minSpeedMps) / span : 0.5
+  return colorFromStops(ratio)
 }
 
 function distanceBetween(a, b) {
@@ -82,7 +148,9 @@ const validPoints = computed(() =>
       const latitude = toCoordinate(point.latitude)
       const longitude = toCoordinate(point.longitude)
       const sourceDistanceM = toDistance(point.distance_m ?? point.distanceM)
-      return { latitude, longitude, sourceDistanceM }
+      const speedMps = toPositiveNumber(point.speed_mps ?? point.speedMps)
+      const timestampMs = toTimestamp(point.sample_time_utc ?? point.sampleTimeUtc)
+      return { latitude, longitude, sourceDistanceM, speedMps, timestampMs }
     })
     .filter((point) =>
       point.latitude !== null
@@ -109,12 +177,49 @@ const validPoints = computed(() =>
         latitude: point.latitude,
         longitude: point.longitude,
         distanceM: index === 0 ? 0 : distanceM,
+        speedMps: point.speedMps,
+        timestampMs: point.timestampMs,
       })
       return points
     }, []),
 )
 
 const latLngs = computed(() => validPoints.value.map((point) => [point.latitude, point.longitude]))
+
+const routeSegments = computed(() => {
+  if (validPoints.value.length < 2) return []
+
+  const segments = validPoints.value.slice(1).map((point, index) => {
+    const previous = validPoints.value[index]
+    const segmentDistanceM = Math.max(point.distanceM - previous.distanceM, 0)
+    const segmentDurationS = point.timestampMs && previous.timestampMs
+      ? (point.timestampMs - previous.timestampMs) / 1000
+      : null
+    const fallbackSpeedMps = segmentDurationS && segmentDurationS > 0
+      ? segmentDistanceM / segmentDurationS
+      : null
+    const speedMps = point.speedMps ?? previous.speedMps ?? fallbackSpeedMps
+
+    return {
+      latLngs: [
+        [previous.latitude, previous.longitude],
+        [point.latitude, point.longitude],
+      ],
+      speedMps,
+    }
+  })
+
+  const speeds = segments.map((segment) => segment.speedMps).filter((speed) =>
+    Number.isFinite(speed) && speed > 0
+  )
+  const minSpeedMps = quantile(speeds, 0.05)
+  const maxSpeedMps = quantile(speeds, 0.95)
+
+  return segments.map((segment) => ({
+    ...segment,
+    color: colorForSpeed(segment.speedMps, minSpeedMps, maxSpeedMps),
+  }))
+})
 
 const kilometerMarkers = computed(() => {
   if (validPoints.value.length < 2) return []
@@ -209,13 +314,17 @@ function renderRoute() {
 
   clearLayers()
 
-  routeLayer = L.polyline(latLngs.value, {
-    color: '#21d47b',
-    weight: 5,
-    opacity: 0.95,
-    lineCap: 'round',
-    lineJoin: 'round',
-  }).addTo(map)
+  routeLayer = L.layerGroup(
+    routeSegments.value.map((segment) =>
+      L.polyline(segment.latLngs, {
+        color: segment.color,
+        weight: 5,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }),
+    ),
+  ).addTo(map)
 
   const markers = []
   const start = latLngs.value[0]

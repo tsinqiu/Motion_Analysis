@@ -52,7 +52,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Activity, Bike, Dumbbell, Waves } from '@lucide/vue'
+import { Bike, Dumbbell, Footprints, Waves } from '@lucide/vue'
 
 import {
   formatCalories,
@@ -87,11 +87,11 @@ const sportColor = computed(() => ({
 }[sportClass.value] || '#94a3b8'))
 
 const sportIcon = computed(() => ({
-  run: Activity,
+  run: Footprints,
   ride: Bike,
   swim: Waves,
   strength: Dumbbell,
-}[sportClass.value] || Activity))
+}[sportClass.value] || Footprints))
 
 const displayTitle = computed(() => (
   props.activity.is_manual
