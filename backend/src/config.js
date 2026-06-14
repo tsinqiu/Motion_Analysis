@@ -11,6 +11,15 @@ function parseInteger(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function parseProviderOrder(value) {
+  const supported = new Set(['deepseek', 'ollama']);
+  const providers = String(value || 'deepseek,ollama')
+    .split(',')
+    .map((provider) => provider.trim().toLowerCase())
+    .filter((provider) => supported.has(provider));
+  return providers.length ? providers : ['deepseek', 'ollama'];
+}
+
 function parseCorsOrigins(value, serverPort) {
   const localApiOrigins = [`http://127.0.0.1:${serverPort}`, `http://localhost:${serverPort}`];
   const localFrontendOrigins = ['http://127.0.0.1:5173', 'http://localhost:5173'];
@@ -94,6 +103,18 @@ const config = {
     modelPath:
       resolveBackendPath(process.env.ML_MODEL_PATH, 'ml/models/running_model.joblib'),
     timeoutMs: parseInteger(process.env.ML_TIMEOUT_MS, 10000)
+  },
+  ai: {
+    provider: (process.env.AI_PROVIDER || 'auto').toLowerCase(),
+    providerOrder: parseProviderOrder(process.env.AI_PROVIDER_ORDER),
+    model: process.env.AI_MODEL || process.env.AI_DEEPSEEK_MODEL || process.env.AI_OLLAMA_MODEL || 'deepseek-chat',
+    deepseekBaseUrl: process.env.AI_DEEPSEEK_BASE_URL || 'https://api.deepseek.com',
+    deepseekApiKey: process.env.DEEPSEEK_API_KEY || process.env.AI_DEEPSEEK_API_KEY || '',
+    deepseekModel: process.env.AI_DEEPSEEK_MODEL || process.env.AI_MODEL || 'deepseek-chat',
+    ollamaBaseUrl: process.env.AI_OLLAMA_BASE_URL || 'http://127.0.0.1:11434',
+    ollamaModel: process.env.AI_OLLAMA_MODEL || process.env.AI_MODEL || 'qwen2.5:3b-instruct',
+    timeoutMs: parseInteger(process.env.AI_TIMEOUT_MS, 60000),
+    fallbackRules: process.env.AI_FALLBACK_RULES !== 'false'
   },
   garmin: {
     pythonPath: process.env.GARMIN_PYTHON_PATH || process.env.ML_PYTHON_PATH || 'python',

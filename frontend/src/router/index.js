@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Admin from '@/views/Admin.vue'
 import Activities from '@/views/Activities.vue'
 import ActivityDetail from '@/views/ActivityDetail.vue'
+import Assistant from '@/views/Assistant.vue'
 import Calendar from '@/views/Calendar.vue'
 import Community from '@/views/Community.vue'
 import DatabaseSchema from '@/views/DatabaseSchema.vue'
@@ -100,6 +101,12 @@ const routes = [
     name: 'sync',
     component: Sync,
     meta: { title: '同步', requiresAuth: true },
+  },
+  {
+    path: '/assistant',
+    name: 'assistant',
+    component: Assistant,
+    meta: { title: 'AI 助手', requiresAuth: true },
   },
   {
     path: '/explore',

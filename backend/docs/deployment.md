@@ -76,6 +76,47 @@ Use `npm install` when the deployment host is updating in place and needs to
 refresh `package-lock.json` dependencies such as Leaflet. Use `npm ci` only when
 the server working tree is clean and the lock file is already the intended one.
 
+## AI Provider Deployment
+
+AI assistant features use the backend `/api/ai/*` endpoints. The backend can use
+DeepSeek, local Ollama, or deterministic rule summaries. Frontend code never
+stores or calls model credentials directly.
+
+For local development, use DeepSeek first and Ollama as a local fallback:
+
+```text
+AI_PROVIDER=auto
+AI_PROVIDER_ORDER=deepseek,ollama
+AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_API_KEY=your_deepseek_key
+AI_OLLAMA_MODEL=qwen2.5:1.5b-instruct
+AI_OLLAMA_BASE_URL=http://127.0.0.1:11434
+AI_TIMEOUT_MS=60000
+AI_FALLBACK_RULES=true
+```
+
+For the low-memory cloud server, use DeepSeek only and do not install Ollama:
+
+```text
+AI_PROVIDER=deepseek
+AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_API_KEY=your_deepseek_key
+AI_TIMEOUT_MS=60000
+AI_FALLBACK_RULES=true
+```
+
+After changing `.env`, restart PM2 with updated environment variables:
+
+```bash
+pm2 restart motion-analysis-api --update-env
+```
+
+If Ollama is used locally, keep it bound to localhost and do not expose port
+`11434` publicly. The application does not persist AI chat messages, prompts, or
+responses in MySQL.
+
 ## Backend Environment
 
 Copy the production example and fill in real secrets:

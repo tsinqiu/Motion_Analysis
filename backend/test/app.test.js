@@ -60,6 +60,57 @@ function buildApp(overrides = {}) {
     })
   };
 
+  const aiService = overrides.aiService || {
+    getHealth: async () => ({
+      status: 'fallback',
+      provider: 'ollama',
+      model: 'qwen2.5:3b-instruct',
+      ollamaAvailable: false,
+      modelAvailable: false,
+      fallbackRules: true
+    }),
+    chat: async (payload, user) => ({
+      data: {
+        role: 'assistant',
+        content: `规则建议：${payload.message}`,
+        userId: user.id
+      },
+      meta: { ai: { provider: 'rules', fallback: true } }
+    }),
+    getDailyBrief: async (user) => ({
+      data: {
+        headline: '负荷平稳',
+        sections: [
+          { key: 'recent', title: '近期运动', tone: 'good', text: '近期运动稳定。' },
+          { key: 'body', title: '身体状态', tone: 'steady', text: '状态平稳。' },
+          { key: 'today', title: '今日安排', tone: 'steady', text: '建议轻松有氧。' }
+        ],
+        metrics: [],
+        recommendation: '建议轻松有氧。',
+        userId: user.id
+      },
+      meta: { ai: { provider: 'rules', fallback: true } }
+    }),
+    analyzeActivity: async (payload, user) => {
+      if (payload.activityId === 999) {
+        const error = new Error('activity not found');
+        error.statusCode = 404;
+        error.code = 'ACTIVITY_NOT_FOUND';
+        throw error;
+      }
+      return {
+        data: {
+          headline: '运动智能分析',
+          summary: '本次运动完成稳定。',
+          insights: [],
+          suggestions: ['注意恢复。'],
+          userId: user.id
+        },
+        meta: { ai: { provider: 'rules', fallback: true } }
+      };
+    }
+  };
+
   const authService = overrides.authService || {
     register: async ({ username, email }) => ({ user: { id: 2, username, email, role: 'user' }, token: 'registered-token' }),
     login: async ({ email }) => ({ user: { id: 2, username: 'tester', email, role: 'user' }, token: 'login-token' }),
@@ -191,6 +242,7 @@ function buildApp(overrides = {}) {
     healthService,
     activityService,
     mlService,
+    aiService,
     authService,
     manualActivityService,
     syncService,
@@ -228,6 +280,68 @@ test('GET /api/health returns service and database status', async () => {
   assert.equal(response.body.data.status, 'ok');
   assert.equal(response.body.data.database.ok, true);
   assert.equal(typeof response.body.data.cache.stats.size, 'number');
+});
+
+test('GET /api/ai/health requires login', async () => {
+  const response = await request(buildApp()).get('/api/ai/health');
+
+  assert.equal(response.status, 401);
+  assert.equal(response.body.error.code, 'AUTH_REQUIRED');
+});
+
+test('GET /api/ai/health returns provider status for authenticated user', async () => {
+  const response = await request(buildApp())
+    .get('/api/ai/health')
+    .set('Authorization', 'Bearer valid-user-token');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.provider, 'ollama');
+  assert.equal(response.body.data.model, 'qwen2.5:3b-instruct');
+  assert.equal(response.body.data.fallbackRules, true);
+});
+
+test('POST /api/ai/chat returns assistant answer with fallback meta', async () => {
+  const response = await request(buildApp())
+    .post('/api/ai/chat')
+    .set('Authorization', 'Bearer valid-user-token')
+    .send({ message: '今天适合训练吗？' });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.role, 'assistant');
+  assert.match(response.body.data.content, /今天适合训练/);
+  assert.equal(response.body.meta.ai.fallback, true);
+});
+
+test('GET /api/ai/daily-brief returns stable brief structure', async () => {
+  const response = await request(buildApp())
+    .get('/api/ai/daily-brief')
+    .set('Authorization', 'Bearer valid-user-token');
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.headline, '负荷平稳');
+  assert.equal(response.body.data.sections.length, 3);
+  assert.equal(response.body.meta.ai.provider, 'rules');
+});
+
+test('POST /api/ai/activity-analysis returns activity suggestions', async () => {
+  const response = await request(buildApp())
+    .post('/api/ai/activity-analysis')
+    .set('Authorization', 'Bearer valid-user-token')
+    .send({ activityId: 1 });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.headline, '运动智能分析');
+  assert.deepEqual(response.body.data.suggestions, ['注意恢复。']);
+});
+
+test('POST /api/ai/activity-analysis returns 404 for missing activity', async () => {
+  const response = await request(buildApp())
+    .post('/api/ai/activity-analysis')
+    .set('Authorization', 'Bearer valid-user-token')
+    .send({ activityId: 999 });
+
+  assert.equal(response.status, 404);
+  assert.equal(response.body.error.code, 'ACTIVITY_NOT_FOUND');
 });
 
 test('GET /api/health reports degraded database state', async () => {

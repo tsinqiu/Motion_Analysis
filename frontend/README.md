@@ -18,15 +18,16 @@
 
 - `/login`：登录页，接入后端 JWT 登录接口，未登录访问业务页会自动跳转到这里。
 - `/register`：注册页，开放普通用户注册，注册成功后自动登录。
-- `/today`：今日首页，生产模式读取 `/dashboard/overview`、最近运动和训练负荷；天气、健康日指标在后端未提供接口时显示真实空状态。
+- `/today`：今日首页，生产模式读取 `/dashboard/overview`、最近运动、训练负荷和 `/ai/daily-brief` 智能运动简报；AI 不可用时展示规则助手结果。
 - `/activities`：我的运动，支持类型筛选、关键词、日期、排序和分页；普通用户只读，管理员可管理手动活动。
-- `/activities/:id`：运动详情，展示摘要、真实地图轨迹、心率、速度、分段、手动编辑和跑步负荷预测；地图轨迹使用 Leaflet + OpenStreetMap，自动加载完整轨迹点并标注每公里编号。
+- `/activities/:id`：运动详情，展示摘要、真实地图轨迹、心率、速度、分段、手动编辑和运动智能分析；地图轨迹使用 Leaflet + OpenStreetMap，自动加载完整轨迹点并标注每公里编号。
 - `/calendar`：运动日历，按月展示每日运动图标，点击日期查看当天活动。
 - `/trends`：趋势分析，支持运动类型、时间范围和指标切换；指标趋势图支持鼠标滚轮横向缩放和图内拖动平移。
 - `/training-load`：训练负荷平衡，展示 CTL、ATL、TSB 曲线与状态建议。
 - `/statistics`：运动统计，支持按月、按年、全部汇总。
 - `/records`：最佳记录，展示步数、跑步、骑行和游泳个人最佳。
 - `/sync`：Garmin 同步页面，支持 Garmin 账号绑定、MFA、中国区登录、立即同步、解除绑定、最近同步记录和同步日志。
+- `/assistant`：AI 助手，采用类 ChatGPT 的消息界面，只围绕运动数据、训练负荷、恢复和训练安排回答；聊天记录只保存在当前页面会话。
 - `/explore`：探索内容，读取 ExploreArticles 与 recommendations；后端为空时显示空状态。
 - `/community`：运动圈，支持真实发帖、评论、点赞、取消点赞和分享。
 - `/settings`：设置与隐私，读写服务器 UserSettings。
@@ -68,7 +69,7 @@ npm run dev -- --host 127.0.0.1
 npm run smoke
 ```
 
-当前 smoke 路由包括 `/`、`/login`、`/register`、`/today`、`/activities`、`/activities/189`、`/calendar`、`/trends`、`/training-load`、`/statistics`、`/records`、`/sync`、`/community`、`/explore`、`/settings`、`/start`、`/schema`。Smoke 只验证路由可访问；地图瓦片、Garmin 登录和真实数据同步需要浏览器和后端环境单独验证。
+当前 smoke 路由包括 `/`、`/login`、`/register`、`/today`、`/activities`、`/activities/189`、`/calendar`、`/trends`、`/training-load`、`/statistics`、`/records`、`/sync`、`/assistant`、`/community`、`/explore`、`/settings`、`/start`、`/schema`。Smoke 只验证路由可访问；地图瓦片、Garmin 登录、AI provider 和真实数据同步需要浏览器和后端环境单独验证。
 
 ## 环境变量
 
@@ -138,6 +139,10 @@ VITE_USE_MOCK=false
 - `POST /sync/jobs`
 - `GET /sync/jobs`
 - `GET /sync/logs`
+- `GET /ai/health`
+- `POST /ai/chat`
+- `GET /ai/daily-brief`
+- `POST /ai/activity-analysis`
 - `GET /community/posts`
 - `POST /community/posts`
 - `GET /community/posts/:id/comments`
@@ -158,7 +163,7 @@ VITE_USE_MOCK=false
 
 活动详情页会循环分页拉取轨迹点，直到后端返回最后一页；经纬度为空的点会被过滤，不再误画到 `(0,0)`。公里编号点基于 `distance_m` 插值到轨迹线上，缺少距离字段时按经纬度累计距离兜底。
 
-Garmin 同步 adapter 未配置或 Python/Garmin token 环境不可用时，`/sync` 展示后端返回的真实错误或不可用状态，不伪造导入成功。`ExploreArticles` 为空时，`/explore` 展示真实空状态。ML 模型文件不可用时，跑步负荷预测按钮会展示后端错误，不伪装 AI 预测成功。
+Garmin 同步 adapter 未配置或 Python/Garmin token 环境不可用时，`/sync` 展示后端返回的真实错误或不可用状态，不伪造导入成功。AI 功能只调用后端 `/ai/*`，由后端选择 DeepSeek、Ollama 或规则降级；前端不保存 DeepSeek Key，也不直连 Ollama。`ExploreArticles` 为空时，`/explore` 展示真实空状态。ML 模型文件不可用时，后端 AI 分析会继续使用规则模板，不伪装专业医疗建议。
 
 ## 登录与权限
 

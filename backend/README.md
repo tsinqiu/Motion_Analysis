@@ -130,6 +130,10 @@ backend/docs/frontend-integration.md
 - `POST /api/sync/jobs`
 - `GET /api/sync/jobs`
 - `GET /api/sync/logs`
+- `GET /api/ai/health`
+- `POST /api/ai/chat`
+- `GET /api/ai/daily-brief`
+- `POST /api/ai/activity-analysis`
 - `GET /api/ml/health`
 - `POST /api/ml/running-prediction`
 
@@ -187,6 +191,43 @@ STATS_CACHE_TTL_SECONDS=60
 ```
 
 手动上传、修改、删除活动后会清空统计缓存，避免用户写入后长时间看到旧统计。`GET /api/health` 会返回统计缓存是否启用、TTL 和当前缓存条目数。
+
+## AI 助手和模型 Provider
+
+AI 助手、首页智能运动简报和运动详情智能分析统一走后端 `/api/ai/*`。后端支持 DeepSeek、Ollama 和规则模板降级；前端不会直连模型接口，也不会接触 `DEEPSEEK_API_KEY`。
+
+本地开发推荐双模式，先 DeepSeek，失败后尝试 Ollama，最后规则降级：
+
+```text
+AI_PROVIDER=auto
+AI_PROVIDER_ORDER=deepseek,ollama
+AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_API_KEY=your_deepseek_key
+AI_OLLAMA_MODEL=qwen2.5:1.5b-instruct
+AI_OLLAMA_BASE_URL=http://127.0.0.1:11434
+AI_TIMEOUT_MS=60000
+AI_FALLBACK_RULES=true
+```
+
+云端低内存服务器推荐只启用 DeepSeek，不安装 Ollama：
+
+```text
+AI_PROVIDER=deepseek
+AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_API_KEY=your_deepseek_key
+AI_TIMEOUT_MS=60000
+AI_FALLBACK_RULES=true
+```
+
+如需本地 Ollama，拉取轻量模型：
+
+```bash
+ollama pull qwen2.5:1.5b-instruct
+```
+
+Ollama 只应监听本机地址，不要把 `11434` 暴露到公网。AI 聊天记录、prompt 和模型回答不会写入 MySQL。
 
 ## Garmin 同步和部署注意事项
 

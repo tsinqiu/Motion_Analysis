@@ -62,23 +62,34 @@
       <section class="dark-panel">
         <div class="section-heading">
           <div>
-            <h2>跑步负荷预测</h2>
+            <p class="overline">AI Analysis</p>
+            <h2>运动智能分析</h2>
           </div>
-          <button class="primary-link" type="button" @click="runPrediction">运行分析</button>
+          <button class="primary-link" type="button" :disabled="analysisLoading" @click="runAnalysis">
+            {{ analysisLoading ? '分析中' : '运行分析' }}
+          </button>
         </div>
         <StateBlock
-          v-if="predictionError"
-          title="模型分析失败"
-          :message="predictionError"
+          v-if="analysisError"
+          title="智能分析失败"
+          :message="analysisError"
           tone="danger"
         />
-        <div v-if="prediction" class="prediction-grid">
-          <span><small>负荷等级</small><b>{{ prediction.predictedTrainingLoadLevel }}</b></span>
-          <span><small>疲劳风险</small><b>{{ prediction.fatigueRisk }}</b></span>
-          <span><small>置信度</small><b>{{ Math.round((prediction.confidence || 0) * 100) }}%</b></span>
-          <p>{{ prediction.recoveryAdvice }}</p>
+        <div v-if="analysis" class="prediction-grid ai-analysis-grid">
+          <span
+            v-for="insight in analysisInsights"
+            :key="insight.label"
+            :class="insight.tone"
+          >
+            <small>{{ insight.label }}</small>
+            <b>{{ insight.value }}</b>
+          </span>
+          <p>{{ analysis.summary }}</p>
+          <ul>
+            <li v-for="suggestion in analysisSuggestions" :key="suggestion">{{ suggestion }}</li>
+          </ul>
         </div>
-        <p v-else class="muted-copy">点击后根据当前运动记录生成训练建议。</p>
+        <p v-else class="muted-copy">点击后根据当前运动记录生成表现分析、恢复提示和下次训练建议。</p>
       </section>
 
       <ManualActivityModal
@@ -104,6 +115,7 @@ import RoutePreview from '@/components/RoutePreview.vue'
 import SessionDetails from '@/components/SessionDetails.vue'
 import StateBlock from '@/components/StateBlock.vue'
 import ZoneDistribution from '@/components/ZoneDistribution.vue'
+import { analyzeActivity } from '@/services/ai'
 import {
   deleteManualActivity,
   getActivity,
@@ -111,7 +123,6 @@ import {
   getLaps,
   getSpeedSeries,
   getTrackPoints,
-  predictRunningLoad,
   updateManualActivity,
 } from '@/services/activities'
 import { authSession } from '@/stores/authStore'
@@ -124,8 +135,9 @@ const error = ref('')
 const loading = ref(false)
 const modalOpen = ref(false)
 const isDeleting = ref(false)
-const prediction = ref(null)
-const predictionError = ref('')
+const analysis = ref(null)
+const analysisError = ref('')
+const analysisLoading = ref(false)
 const trackPoints = ref([])
 const heartRateSeries = ref([])
 const speedSeries = ref([])
@@ -138,6 +150,8 @@ const sportColor = computed(() => {
   return '#21d47b'
 })
 const canManageManual = computed(() => authSession.user?.role === 'admin' && activity.value?.is_manual)
+const analysisInsights = computed(() => analysis.value?.insights || [])
+const analysisSuggestions = computed(() => analysis.value?.suggestions || [])
 
 const heartRateOption = computed(() => createLineOption('心率', 'bpm', '#ef4444', heartRateSeries.value, 'heart_rate_bpm'))
 const paceOption = computed(() => {
@@ -303,8 +317,8 @@ function createLineOption(name, unit, color, source, field, options = {}) {
 async function loadActivity(id) {
   loading.value = true
   error.value = ''
-  prediction.value = null
-  predictionError.value = ''
+  analysis.value = null
+  analysisError.value = ''
 
   try {
     const nextActivity = await getActivity(id)
@@ -336,26 +350,16 @@ async function loadActivity(id) {
   }
 }
 
-async function runPrediction() {
-  predictionError.value = ''
+async function runAnalysis() {
+  analysisError.value = ''
+  analysisLoading.value = true
   try {
-    prediction.value = await predictRunningLoad({
-      distanceM: activity.value.total_distance_m,
-      durationS: activity.value.total_timer_time_s,
-      movingDurationS: activity.value.total_moving_time_s,
-      elapsedDurationS: activity.value.total_timer_time_s,
-      avgSpeedMps: activity.value.avg_speed_mps,
-      maxSpeedMps: activity.value.max_speed_mps,
-      avgHeartRateBpm: activity.value.avg_heart_rate_bpm,
-      maxHeartRateBpm: activity.value.max_heart_rate_bpm,
-      avgCadenceSpm: activity.value.avg_cadence,
-      elevationGainM: activity.value.total_ascent_m,
-      elevationLossM: activity.value.total_descent_m,
-      normalizedPowerW: activity.value.avg_power_w,
-      activityTrainingLoad: activity.value.activity_training_load,
-    })
+    const envelope = await analyzeActivity(activity.value.id)
+    analysis.value = envelope.data
   } catch (err) {
-    predictionError.value = err instanceof Error ? err.message : '模型分析失败'
+    analysisError.value = err instanceof Error ? err.message : '智能分析失败'
+  } finally {
+    analysisLoading.value = false
   }
 }
 
