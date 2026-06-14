@@ -172,14 +172,17 @@ export function normalizeActivity(row = {}) {
     total_distance_m: toNumber(distanceM),
     total_timer_time_s: toNumber(durationS),
     total_moving_time_s: toNumber(firstDefined(row.total_moving_time_s, row.movingDurationS, row.durationS)),
+    total_elapsed_time_s: toNumber(firstDefined(row.total_elapsed_time_s, row.elapsedDurationS, row.fitElapsedTimeS)),
     total_calories: toNumber(firstDefined(row.total_calories, row.calories)),
     avg_speed_mps: toNumber(avgSpeedMps),
     max_speed_mps: toNumber(firstDefined(row.max_speed_mps, row.maxSpeedMps)),
     avg_heart_rate_bpm: toNumber(firstDefined(row.avg_heart_rate_bpm, row.avgHeartRateBpm)),
     max_heart_rate_bpm: toNumber(firstDefined(row.max_heart_rate_bpm, row.maxHeartRateBpm)),
     avg_cadence: toNumber(firstDefined(row.avg_cadence, row.avgCadenceSpm, row.fitSingleLegCadence)),
+    max_cadence: toNumber(firstDefined(row.max_cadence, row.maxCadenceSpm)),
     avg_power_w: toNumber(firstDefined(row.avg_power_w, row.avgPowerW, row.normalizedPowerW)),
     max_power_w: toNumber(firstDefined(row.max_power_w, row.maxPowerW)),
+    normalized_power_w: toNumber(firstDefined(row.normalized_power_w, row.normalizedPowerW)),
     total_ascent_m: toNumber(firstDefined(row.total_ascent_m, row.elevationGainM)),
     total_descent_m: toNumber(firstDefined(row.total_descent_m, row.elevationLossM)),
     activity_training_load: toNumber(firstDefined(row.activity_training_load, row.activityTrainingLoad)),
@@ -201,6 +204,7 @@ export function normalizeTrackPoint(row = {}) {
     heart_rate_bpm: toNumber(firstDefined(row.heart_rate_bpm, row.heartRateBpm)),
     cadence: toNumber(firstDefined(row.cadence, row.fitSingleLegCadence)),
     power_w: toNumber(firstDefined(row.power_w, row.powerW)),
+    vertical_oscillation_mm: toNumber(firstDefined(row.vertical_oscillation_mm, row.verticalOscillationMm)),
   }
 }
 
@@ -648,6 +652,27 @@ export async function getTrackPoints(id, params = {}) {
   return allPoints
 }
 
+async function getPaginatedTrackSeries(id, path, fallbackSeries, params = {}) {
+  if (useMockData()) return fallbackSeries.map(normalizeTrackPoint)
+
+  const pageSize = Math.min(Number(params.limit) || 10000, 10000)
+  let offset = Number(params.offset) || 0
+  const allPoints = []
+
+  while (true) {
+    const envelope = await requestEnvelope(`/activities/${id}/${path}`, fallbackSeries, normalizeTrackPoint, {
+      params: { ...params, limit: pageSize, offset },
+    })
+    const page = envelope.data || []
+    allPoints.push(...page)
+
+    if (page.length < pageSize) break
+    offset += pageSize
+  }
+
+  return allPoints
+}
+
 export async function getHeartRateSeries(id, params = {}) {
   const series = trackPoints
     .filter((point) => point.heart_rate_bpm !== null)
@@ -656,12 +681,7 @@ export async function getHeartRateSeries(id, params = {}) {
       heart_rate_bpm: point.heart_rate_bpm,
     }))
 
-  if (useMockData()) return series.map(normalizeTrackPoint)
-
-  const envelope = await requestEnvelope(`/activities/${id}/heart-rate`, series, normalizeTrackPoint, {
-    params: { limit: 2000, offset: 0, ...params },
-  })
-  return envelope.data || []
+  return getPaginatedTrackSeries(id, 'heart-rate', series, params)
 }
 
 export async function getSpeedSeries(id, params = {}) {
@@ -672,12 +692,7 @@ export async function getSpeedSeries(id, params = {}) {
       speed_mps: point.speed_mps,
     }))
 
-  if (useMockData()) return series.map(normalizeTrackPoint)
-
-  const envelope = await requestEnvelope(`/activities/${id}/speed`, series, normalizeTrackPoint, {
-    params: { limit: 2000, offset: 0, ...params },
-  })
-  return envelope.data || []
+  return getPaginatedTrackSeries(id, 'speed', series, params)
 }
 
 export async function getLaps(id) {

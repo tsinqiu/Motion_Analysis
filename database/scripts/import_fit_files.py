@@ -350,6 +350,22 @@ def get_num(values, *names):
     return None
 
 
+def get_nested_num(values, *path):
+    current = values
+    for name in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(name)
+    return current if isinstance(current, (int, float)) else None
+
+
+def first_num(*values):
+    for value in values:
+        if isinstance(value, (int, float)):
+            return value
+    return None
+
+
 def get_int(values, *names):
     value = get_num(values, *names)
     return None if value is None else int(value)
@@ -906,7 +922,10 @@ def emit_json_summary_rows(lines, item):
             sql_number(get_num(j, "aerobicTrainingEffect")),
             sql_number(get_num(j, "anaerobicTrainingEffect")),
             sql_string(j.get("trainingEffectLabel")),
-            sql_number(get_num(j, "activityTrainingLoad")),
+            sql_number(first_num(
+                get_num(j, "activityTrainingLoad"),
+                get_nested_num(j, "summaryDTO", "activityTrainingLoad"),
+            )),
             sql_number(get_num(j, "vO2MaxValue")),
             sql_int(get_int(j, "differenceBodyBattery")),
             sql_number(get_num(j, "waterEstimated")),

@@ -83,6 +83,78 @@ Supported query parameters:
 
 `page_size` is capped at 200. Track point, heart-rate, and speed endpoints keep their own higher `limit` caps so the frontend can request chart data without loading the full table.
 
+## AI Assistant
+
+All AI endpoints require:
+
+```text
+Authorization: Bearer <token>
+```
+
+```text
+GET  /api/ai/health
+POST /api/ai/chat
+GET  /api/ai/daily-brief
+POST /api/ai/activity-analysis
+```
+
+The backend supports DeepSeek, Ollama, and rule fallback. Recommended local
+development values:
+
+```text
+AI_PROVIDER=auto
+AI_PROVIDER_ORDER=deepseek,ollama
+AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_API_KEY=your_deepseek_key
+AI_OLLAMA_MODEL=qwen2.5:1.5b-instruct
+AI_OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
+
+Cloud servers with limited memory should use DeepSeek only:
+
+```text
+AI_PROVIDER=deepseek
+AI_DEEPSEEK_MODEL=deepseek-chat
+AI_DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_API_KEY=your_deepseek_key
+```
+
+When the configured provider is unavailable and `AI_FALLBACK_RULES=true`,
+responses keep the same shape and include fallback metadata:
+
+```json
+{
+  "data": {},
+  "meta": {
+    "ai": {
+      "provider": "rules",
+      "fallback": true,
+      "reason": "AI_PROVIDER_UNAVAILABLE"
+    }
+  }
+}
+```
+
+`POST /api/ai/chat` accepts:
+
+```json
+{
+  "message": "今天适合训练吗？"
+}
+```
+
+`POST /api/ai/activity-analysis` accepts:
+
+```json
+{
+  "activityId": 123
+}
+```
+
+AI output is for training reference only and is not a medical diagnosis. Chat
+history, prompts, and model responses are not persisted in MySQL.
+
 ## Manual Upload
 
 ```text

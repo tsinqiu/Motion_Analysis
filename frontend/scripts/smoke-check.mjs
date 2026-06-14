@@ -14,6 +14,7 @@ const paths = [
   '/statistics',
   '/records',
   '/sync',
+  '/assistant',
   '/community',
   '/explore',
   '/settings',

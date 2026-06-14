@@ -164,7 +164,7 @@ function createStatsRouter(activityService = defaultActivityService, authService
       const groupBy = parseEnum(req.query.group_by, TIMELINE_GROUPS, 'group_by', 'day');
       await sendCachedStats(req, res, () =>
         activityService.getTimelineStats({
-          ...parseStatsFilters(req.query, req.user),
+          ...parseSummaryFilters(req.query, req.user),
           groupBy
         })
       );

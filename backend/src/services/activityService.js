@@ -365,7 +365,8 @@ async function getTrackPoints(activityId, { limit, offset }) {
         speed_mps AS speedMps,
         heart_rate_bpm AS heartRateBpm,
         cadence AS fitSingleLegCadence,
-        power_w AS powerW
+        power_w AS powerW,
+        vertical_oscillation_mm AS verticalOscillationMm
       FROM TrackPoints
       WHERE activity_id = ?
       ORDER BY sample_index
@@ -413,16 +414,40 @@ async function getLaps(activityId) {
   return db.query(
     `
       SELECT
-        lap_index AS lapIndex,
-        start_time_utc AS startTimeUtc,
-        total_distance_m AS totalDistanceM,
-        total_timer_time_s AS totalTimerTimeS,
-        avg_speed_mps AS avgSpeedMps,
-        avg_heart_rate_bpm AS avgHeartRateBpm,
-        avg_power_w AS avgPowerW
-      FROM Laps
-      WHERE activity_id = ?
-      ORDER BY lap_index
+        l.lap_index AS lapIndex,
+        l.start_time_utc AS startTimeUtc,
+        l.total_distance_m AS totalDistanceM,
+        l.total_timer_time_s AS totalTimerTimeS,
+        l.avg_speed_mps AS avgSpeedMps,
+        COALESCE(NULLIF(l.avg_heart_rate_bpm, 0), ROUND(AVG(NULLIF(tp.heart_rate_bpm, 0)))) AS avgHeartRateBpm,
+        l.avg_power_w AS avgPowerW
+      FROM Laps l
+      LEFT JOIN TrackPoints tp
+        ON tp.activity_id = l.activity_id
+        AND tp.distance_m > COALESCE((
+          SELECT SUM(prev.total_distance_m)
+          FROM Laps prev
+          WHERE prev.activity_id = l.activity_id
+            AND prev.lap_index < l.lap_index
+        ), 0)
+        AND tp.distance_m <= COALESCE((
+          SELECT SUM(prev.total_distance_m)
+          FROM Laps prev
+          WHERE prev.activity_id = l.activity_id
+            AND prev.lap_index <= l.lap_index
+        ), l.total_distance_m)
+        AND tp.heart_rate_bpm IS NOT NULL
+        AND tp.heart_rate_bpm > 0
+      WHERE l.activity_id = ?
+      GROUP BY
+        l.lap_index,
+        l.start_time_utc,
+        l.total_distance_m,
+        l.total_timer_time_s,
+        l.avg_speed_mps,
+        l.avg_heart_rate_bpm,
+        l.avg_power_w
+      ORDER BY l.lap_index
     `,
     [activityId]
   );
@@ -649,7 +674,11 @@ async function getSummaryStats(filters) {
 }
 
 async function getTimelineStats({ groupBy, ...filters }) {
-  const activityFilters = buildActivityFilters(filters);
+  const resolvedFilters = {
+    ...filters,
+    ...resolveRangeDates(filters)
+  };
+  const activityFilters = buildActivityFilters(resolvedFilters);
   const periodExpression =
     groupBy === 'month'
       ? "DATE_FORMAT(a.local_start_time, '%Y-%m')"

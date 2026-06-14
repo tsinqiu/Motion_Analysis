@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Admin from '@/views/Admin.vue'
 import Activities from '@/views/Activities.vue'
 import ActivityDetail from '@/views/ActivityDetail.vue'
+import Assistant from '@/views/Assistant.vue'
 import Calendar from '@/views/Calendar.vue'
 import Community from '@/views/Community.vue'
 import DatabaseSchema from '@/views/DatabaseSchema.vue'
@@ -16,7 +17,6 @@ import Statistics from '@/views/Statistics.vue'
 import Sync from '@/views/Sync.vue'
 import Today from '@/views/Today.vue'
 import TrainingLoad from '@/views/TrainingLoad.vue'
-import Trends from '@/views/Trends.vue'
 import {
   authSession,
   hasAuthToken,
@@ -69,9 +69,7 @@ const routes = [
   },
   {
     path: '/trends',
-    name: 'trends',
-    component: Trends,
-    meta: { title: '趋势', requiresAuth: true },
+    redirect: '/statistics',
   },
   {
     path: '/training-load',
@@ -100,6 +98,12 @@ const routes = [
     name: 'sync',
     component: Sync,
     meta: { title: '同步', requiresAuth: true },
+  },
+  {
+    path: '/assistant',
+    name: 'assistant',
+    component: Assistant,
+    meta: { title: 'AI 助手', requiresAuth: true },
   },
   {
     path: '/explore',
