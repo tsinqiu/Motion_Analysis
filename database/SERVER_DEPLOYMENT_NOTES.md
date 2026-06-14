@@ -111,6 +111,25 @@ UNION ALL SELECT 'Users', COUNT(*) FROM Users;
 "
 ```
 
+Backfill historical Garmin training load after deploying importer changes:
+
+```bash
+cd /www/wwwroot/motion-analysis
+mysql -uroot -p MotionAnalysis < database/sql/08_backfill_activity_training_load.sql
+```
+
+Verify training load coverage:
+
+```bash
+mysql -uroot -p MotionAnalysis --table --execute="
+SELECT
+  COUNT(*) AS total_summaries,
+  COUNT(activity_training_load) AS with_training_load,
+  SUM(activity_training_load IS NULL) AS missing_training_load
+FROM ActivitySummaries;
+"
+```
+
 Run ML prediction smoke test:
 
 ```bash
