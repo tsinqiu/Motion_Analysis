@@ -630,10 +630,22 @@ export async function getActivity(id) {
 export async function getTrackPoints(id, params = {}) {
   if (useMockData()) return trackPoints.map(normalizeTrackPoint)
 
-  const envelope = await requestEnvelope(`/activities/${id}/track-points`, trackPoints, normalizeTrackPoint, {
-    params: { limit: 1000, offset: 0, ...params },
-  })
-  return envelope.data || []
+  const pageSize = Math.min(Number(params.limit) || 5000, 5000)
+  let offset = Number(params.offset) || 0
+  const allPoints = []
+
+  while (true) {
+    const envelope = await requestEnvelope(`/activities/${id}/track-points`, trackPoints, normalizeTrackPoint, {
+      params: { ...params, limit: pageSize, offset },
+    })
+    const page = envelope.data || []
+    allPoints.push(...page)
+
+    if (page.length < pageSize) break
+    offset += pageSize
+  }
+
+  return allPoints
 }
 
 export async function getHeartRateSeries(id, params = {}) {

@@ -29,8 +29,8 @@
         </div>
         <div class="hero-actions">
           <RouterLink class="secondary-link inverse" to="/activities">返回列表</RouterLink>
-          <button v-if="activity.is_manual" class="secondary-link inverse" type="button" @click="modalOpen = true">编辑</button>
-          <button v-if="activity.is_manual" class="danger-link" type="button" :disabled="isDeleting" @click="removeActivity">
+          <button v-if="canManageManual" class="secondary-link inverse" type="button" @click="modalOpen = true">编辑</button>
+          <button v-if="canManageManual" class="danger-link" type="button" :disabled="isDeleting" @click="removeActivity">
             {{ isDeleting ? '删除中' : '删除' }}
           </button>
         </div>
@@ -103,6 +103,7 @@ import {
   predictRunningLoad,
   updateManualActivity,
 } from '@/services/activities'
+import { authSession } from '@/stores/authStore'
 import { formatClockDuration, formatDateTime, formatDistance } from '@/utils/formatters'
 
 const route = useRoute()
@@ -125,6 +126,7 @@ const sportColor = computed(() => {
   if (activity.value?.activity_type === '力量训练') return '#8b5cf6'
   return '#21d47b'
 })
+const canManageManual = computed(() => authSession.user?.role === 'admin' && activity.value?.is_manual)
 
 const heartRateOption = computed(() => createLineOption('心率', 'bpm', '#ef4444', heartRateSeries.value, 'heart_rate_bpm'))
 const speedOption = computed(() => createLineOption('速度', 'm/s', '#33b5ff', speedSeries.value, 'speed_mps'))
@@ -219,6 +221,10 @@ async function runPrediction() {
 }
 
 async function removeActivity() {
+  if (!canManageManual.value) {
+    error.value = '只有管理员可以删除手动运动记录'
+    return
+  }
   if (!window.confirm('确定删除这条手动运动记录吗？')) return
   isDeleting.value = true
   try {

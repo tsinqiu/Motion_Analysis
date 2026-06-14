@@ -93,6 +93,7 @@ a {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
+  overflow-x: hidden;
 }
 
 .sidebar {
@@ -444,6 +445,14 @@ html[data-theme="night"] .hero-panel {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.today-layout > *,
+.load-dashboard > *,
+.detail-grid > *,
+.analytics-grid > *,
+.schema-grid > * {
+  min-width: 0;
 }
 
 .today-layout.single {
@@ -843,6 +852,52 @@ html[data-theme="night"] .hero-panel {
   gap: 14px;
 }
 
+.trend-filter-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.trend-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.trend-filter-group legend {
+  width: 100%;
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.trend-filter-button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.trend-filter-button svg {
+  color: var(--sport-color, var(--muted));
+}
+
+.trend-filter-button.active {
+  border-color: color-mix(in srgb, var(--sport-color, var(--green)) 65%, var(--border));
+  background: color-mix(in srgb, var(--sport-color, var(--green)) 16%, var(--panel));
+  color: var(--text);
+  font-weight: 800;
+}
+
 .checkbox-filter-grid fieldset {
   display: flex;
   flex-wrap: wrap;
@@ -984,6 +1039,10 @@ textarea {
   gap: 12px;
 }
 
+.metric-picker.five-up {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .metric-picker button,
 .sport-start-grid button {
   min-height: 84px;
@@ -1058,6 +1117,53 @@ textarea {
 
 .records-grid {
   align-items: start;
+}
+
+.achievement-panel {
+  display: grid;
+  gap: 4px;
+}
+
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.achievement-list {
+  display: grid;
+  gap: 8px;
+}
+
+.achievement-list button {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  color: var(--text);
+  text-align: left;
+}
+
+.achievement-list button:disabled {
+  opacity: 1;
+}
+
+.achievement-list span {
+  color: var(--muted);
+}
+
+.achievement-list strong {
+  font-size: 18px;
+}
+
+.achievement-list small {
+  color: var(--faint);
+  white-space: nowrap;
 }
 
 .record-list {
@@ -1408,39 +1514,97 @@ tr:hover td {
   grid-column: 1 / -1;
 }
 
+.route-panel {
+  overflow: hidden;
+}
+
 .route-map {
   position: relative;
-  min-height: 310px;
+  height: 386px;
+  min-height: 320px;
   overflow: hidden;
+  contain: layout paint;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--panel-soft);
 }
 
-.route-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--border) 1px, transparent 1px),
-    linear-gradient(90deg, var(--border) 1px, transparent 1px);
-  background-size: 34px 34px;
-  opacity: 0.35;
+.route-map-empty {
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  color: var(--muted);
+  text-align: center;
 }
 
-.route-line {
-  position: absolute;
-  inset: 18%;
-  border: 2px solid rgb(33 212 123 / 0.45);
-  border-radius: 48% 42% 56% 40%;
+.route-map-empty strong {
+  color: var(--text);
 }
 
-.route-point {
-  position: absolute;
-  width: 9px;
-  height: 9px;
+.route-map .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: var(--panel-soft);
+  font: inherit;
+}
+
+.route-map .leaflet-control-attribution {
+  color: var(--muted);
+  background: rgb(255 255 255 / 0.84);
+}
+
+html[data-theme="night"] .route-map .leaflet-control-attribution {
+  background: rgb(16 22 31 / 0.88);
+}
+
+.route-endpoint {
+  display: grid;
+  place-items: center;
   border-radius: 999px;
+  border: 2px solid #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.route-endpoint span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.route-endpoint-start span {
   background: var(--green);
-  transform: translate(-50%, -50%);
+}
+
+.route-endpoint-finish span {
+  background: #ef4444;
+}
+
+.route-km-marker {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid #ffffff;
+  background: var(--green);
+  color: #04130b;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 0.2);
+}
+
+.route-km-marker span {
+  display: grid;
+  min-width: 10px;
+  height: 10px;
+  place-items: center;
+  padding: 0 2px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .schema-table-tabs {
@@ -2055,7 +2219,12 @@ html[data-theme="night"] .input-with-icon {
   .explore-upload-form,
   .sync-layout,
   .sync-list-grid,
+  .achievement-grid,
   .metric-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-picker.five-up {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2121,6 +2290,7 @@ html[data-theme="night"] .input-with-icon {
   .settings-grid,
   .sync-layout,
   .sync-list-grid,
+  .achievement-grid,
   .metric-picker,
   .training-targets,
   .state-metrics,
@@ -2135,8 +2305,22 @@ html[data-theme="night"] .input-with-icon {
     grid-template-columns: 1fr;
   }
 
+  .metric-picker.five-up {
+    grid-template-columns: 1fr;
+  }
+
+  .achievement-list button {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    padding: 12px;
+  }
+
   .activity-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .route-map {
+    height: 320px;
   }
 
   .activity-title {

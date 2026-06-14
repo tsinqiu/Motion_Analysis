@@ -22,7 +22,59 @@ Recommended paths:
   database/
 ```
 
+If the server uses a panel-managed site directory, the equivalent project path
+can be:
+
+```text
+/www/wwwroot/motion-analysis/
+```
+
 The Node API should bind to `127.0.0.1:8080`. Do not expose port `8080` to the public internet.
+
+## Updating From GitHub `dev`
+
+On the cloud server, keep environment files out of Git and pull code from the
+remote `dev` branch:
+
+```bash
+cd /www/wwwroot/motion-analysis
+git status --short
+cp backend/.env /root/motion-analysis-backend.env.backup.$(date +%Y%m%d%H%M%S)
+cp frontend/.env.production /root/motion-analysis-frontend.env.production.backup.$(date +%Y%m%d%H%M%S) 2>/dev/null || true
+
+git fetch origin
+git checkout dev
+git reset --hard origin/dev
+```
+
+`frontend/.env.production` is commonly untracked on the server. It can stay
+untracked; for this Nginx + Express same-origin deployment it should normally
+contain:
+
+```text
+VITE_API_BASE_URL=/api
+VITE_USE_MOCK=false
+```
+
+After pulling code:
+
+```bash
+cd /www/wwwroot/motion-analysis/backend
+npm install
+pm2 restart motion-analysis-api --update-env
+curl http://127.0.0.1:8080/api/health
+
+cd /www/wwwroot/motion-analysis/frontend
+npm install
+npm run build
+
+/www/server/nginx/sbin/nginx -t
+/www/server/nginx/sbin/nginx -s reload
+```
+
+Use `npm install` when the deployment host is updating in place and needs to
+refresh `package-lock.json` dependencies such as Leaflet. Use `npm ci` only when
+the server working tree is clean and the lock file is already the intended one.
 
 ## Backend Environment
 

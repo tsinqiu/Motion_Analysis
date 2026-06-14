@@ -130,6 +130,12 @@ function parseManualActivity(body) {
   return payload;
 }
 
+function requireAdmin(user) {
+  if (user?.role !== 'admin') {
+    throw new ApiError(403, 'only administrators can manage manual activities', 'FORBIDDEN');
+  }
+}
+
 function createManualActivityRouter({
   manualActivityService = defaultManualActivityService,
   authService = defaultAuthService
@@ -141,6 +147,7 @@ function createManualActivityRouter({
     '/manual-activities',
     requireAuth,
     asyncHandler(async (req, res) => {
+      requireAdmin(req.user);
       const activity = await manualActivityService.createManualActivity(parseManualActivity(req.body), req.user);
       statsCache.clear();
       sendCreated(res, activity);
@@ -160,6 +167,7 @@ function createManualActivityRouter({
     '/manual-activities/:id',
     requireAuth,
     asyncHandler(async (req, res) => {
+      requireAdmin(req.user);
       const activity = await manualActivityService.updateManualActivity(
         parsePositiveId(req.params.id),
         parseManualActivity(req.body),
@@ -174,6 +182,7 @@ function createManualActivityRouter({
     '/manual-activities/:id',
     requireAuth,
     asyncHandler(async (req, res) => {
+      requireAdmin(req.user);
       const result = await manualActivityService.deleteManualActivity(parsePositiveId(req.params.id), req.user);
       statsCache.clear();
       sendData(res, result);

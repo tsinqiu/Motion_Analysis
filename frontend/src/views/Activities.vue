@@ -5,7 +5,7 @@
         <div>
           <h2>运动记录</h2>
         </div>
-        <button class="primary-link" type="button" @click="openCreate">
+        <button v-if="isAdmin" class="primary-link" type="button" @click="openCreate">
           <Plus :size="17" />
           手动添加
         </button>
@@ -78,8 +78,8 @@
           @select="goToActivity"
         >
           <template #actions>
-            <button v-if="activity.is_manual" type="button" @click.stop="openEdit(activity)">编辑</button>
-            <button v-if="activity.is_manual" type="button" class="danger-action" @click.stop="removeManual(activity)">删除</button>
+            <button v-if="isAdmin && activity.is_manual" type="button" @click.stop="openEdit(activity)">编辑</button>
+            <button v-if="isAdmin && activity.is_manual" type="button" class="danger-action" @click.stop="removeManual(activity)">删除</button>
           </template>
         </ActivityCard>
       </div>
@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus } from '@lucide/vue'
 
@@ -111,7 +111,7 @@ import SportTabs from '@/components/SportTabs.vue'
 import StateBlock from '@/components/StateBlock.vue'
 import { sportFilters } from '@/mock/garsync'
 import { createManualActivity, deleteManualActivity, getActivityPage, updateManualActivity } from '@/services/activities'
-import { hasAuthToken, normalizeRedirect } from '@/stores/authStore'
+import { authSession, hasAuthToken, normalizeRedirect } from '@/stores/authStore'
 
 const router = useRouter()
 const activities = ref([])
@@ -120,6 +120,7 @@ const error = ref('')
 const loading = ref(false)
 const modalOpen = ref(false)
 const editingActivity = ref(null)
+const isAdmin = computed(() => authSession.user?.role === 'admin')
 
 const filters = reactive({
   page: 1,
@@ -151,6 +152,10 @@ function goToActivity(activity) {
 }
 
 function openCreate() {
+  if (!isAdmin.value) {
+    error.value = '只有管理员可以手动添加运动'
+    return
+  }
   if (!hasAuthToken()) {
     error.value = '请先登录后再手动添加运动'
     router.push({ name: 'login', query: { redirect: normalizeRedirect(router.currentRoute.value.fullPath) } })
@@ -161,6 +166,10 @@ function openCreate() {
 }
 
 function openEdit(activity) {
+  if (!isAdmin.value) {
+    error.value = '只有管理员可以编辑运动'
+    return
+  }
   if (!hasAuthToken()) {
     error.value = '请先登录后再编辑运动'
     router.push({ name: 'login', query: { redirect: normalizeRedirect(router.currentRoute.value.fullPath) } })
@@ -171,6 +180,10 @@ function openEdit(activity) {
 }
 
 async function removeManual(activity) {
+  if (!isAdmin.value) {
+    error.value = '只有管理员可以删除运动'
+    return
+  }
   if (!window.confirm('确定删除这条运动记录吗？')) return
   try {
     await deleteManualActivity(activity.id)

@@ -863,14 +863,56 @@ test('POST /api/manual-activities creates manual activity without running ML pre
 
   const response = await request(app)
     .post('/api/manual-activities')
-    .set('Authorization', 'Bearer valid-user-token')
+    .set('Authorization', 'Bearer valid-admin-token')
     .send(manualPayload);
 
   assert.equal(response.status, 201);
   assert.equal(response.body.data.id, 99);
-  assert.equal(capturedPayload.user.id, 2);
+  assert.equal(capturedPayload.user.id, 1);
   assert.equal(capturedPayload.payload.activityType, 'running');
   assert.equal(predictionCalled, false);
+});
+
+test('POST /api/manual-activities rejects non-admin users', async () => {
+  const response = await request(buildApp())
+    .post('/api/manual-activities')
+    .set('Authorization', 'Bearer valid-user-token')
+    .send(manualPayload);
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error.code, 'FORBIDDEN');
+});
+
+test('PUT and DELETE /api/manual-activities/:id reject non-admin users', async () => {
+  const app = buildApp();
+  const updated = await request(app)
+    .put('/api/manual-activities/10')
+    .set('Authorization', 'Bearer valid-user-token')
+    .send(manualPayload);
+  const deleted = await request(app)
+    .delete('/api/manual-activities/10')
+    .set('Authorization', 'Bearer valid-user-token');
+
+  assert.equal(updated.status, 403);
+  assert.equal(updated.body.error.code, 'FORBIDDEN');
+  assert.equal(deleted.status, 403);
+  assert.equal(deleted.body.error.code, 'FORBIDDEN');
+});
+
+test('PUT and DELETE /api/manual-activities/:id allow administrators', async () => {
+  const app = buildApp();
+  const updated = await request(app)
+    .put('/api/manual-activities/10')
+    .set('Authorization', 'Bearer valid-admin-token')
+    .send(manualPayload);
+  const deleted = await request(app)
+    .delete('/api/manual-activities/10')
+    .set('Authorization', 'Bearer valid-admin-token');
+
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.data.isManual, true);
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.body.data.deleted, true);
 });
 
 test('POST /api/manual-activities allows zero distance for non-distance activity', async () => {
@@ -889,7 +931,7 @@ test('POST /api/manual-activities allows zero distance for non-distance activity
 
   const response = await request(app)
     .post('/api/manual-activities')
-    .set('Authorization', 'Bearer valid-user-token')
+    .set('Authorization', 'Bearer valid-admin-token')
     .send({
       ...manualPayload,
       activityType: 'strength_training',
@@ -904,7 +946,7 @@ test('POST /api/manual-activities allows zero distance for non-distance activity
 test('POST /api/manual-activities rejects zero distance for running activity', async () => {
   const response = await request(buildApp())
     .post('/api/manual-activities')
-    .set('Authorization', 'Bearer valid-user-token')
+    .set('Authorization', 'Bearer valid-admin-token')
     .send({
       ...manualPayload,
       distanceM: 0
@@ -989,7 +1031,7 @@ test('POST /api/manual-activities clears stats cache', async () => {
   await request(app).get('/api/stats/summary?activity_type=running');
   await request(app)
     .post('/api/manual-activities')
-    .set('Authorization', 'Bearer valid-user-token')
+    .set('Authorization', 'Bearer valid-admin-token')
     .send(manualPayload);
   const afterWrite = await request(app).get('/api/stats/summary?activity_type=running');
 
@@ -1509,6 +1551,43 @@ test('activityService summary, calendar, and personal bests expose frontend-comp
     assert.deepEqual(personalBests.running, []);
     assert.deepEqual(personalBests.cycling, []);
     assert.deepEqual(personalBests.overall, []);
+  } finally {
+    db.query = originalQuery;
+  }
+});
+
+test('activityService dashboard overview returns six recent activities', async () => {
+  const originalQuery = db.query;
+  let recentListParams;
+  db.query = async (sql, params = []) => {
+    if (sql.includes('MAX(a.local_start_time)')) {
+      return [{ latestDate: '2026-06-13' }];
+    }
+    if (sql.includes('COUNT(DISTINCT a.id)')) {
+      return [{ total: 6 }];
+    }
+    if (sql.includes('a.garmin_activity_id AS garminActivityId') && sql.includes('LIMIT ? OFFSET ?')) {
+      recentListParams = params;
+      return Array.from({ length: 6 }, (_, index) => ({
+        id: index + 1,
+        activityName: `Recent ${index + 1}`,
+        activityType: 'running',
+        localStartTime: `2026-06-${String(13 - index).padStart(2, '0')} 08:00:00.000`,
+        distanceM: 5000,
+        durationS: 1800
+      }));
+    }
+    if (sql.includes('COUNT(*) AS activityCount') && !sql.includes('GROUP BY')) {
+      return [{ activityCount: 6, totalDistanceKm: 30, totalCalories: 1200 }];
+    }
+    return [];
+  };
+
+  try {
+    const overview = await activityServiceModule.getDashboardOverview({});
+
+    assert.equal(overview.recentActivities.length, 6);
+    assert.deepEqual(recentListParams.slice(-2), [6, 0]);
   } finally {
     db.query = originalQuery;
   }
