@@ -9,7 +9,14 @@ function toPost(row) {
     userBio: row.userBio || '',
     content: row.content,
     activityId: row.activityId,
+    activityName: row.activityName || '',
+    activityType: row.activityType || '',
+    activityLocalStartTime: row.activityLocalStartTime || '',
     visibility: row.visibility,
+    imageUrl: row.imagePath || '',
+    imageOriginalName: row.imageOriginalName || '',
+    imageMimeType: row.imageMimeType || '',
+    imageSizeBytes: row.imageSizeBytes == null ? null : Number(row.imageSizeBytes),
     likeCount: Number(row.likeCount || 0),
     commentCount: Number(row.commentCount || 0),
     shareCount: Number(row.shareCount || 0),
@@ -39,7 +46,14 @@ function postSelect(user) {
       u.bio AS userBio,
       p.content,
       p.activity_id AS activityId,
+      a.activity_name AS activityName,
+      a.activity_type AS activityType,
+      a.local_start_time AS activityLocalStartTime,
       p.visibility,
+      p.image_path AS imagePath,
+      p.image_original_name AS imageOriginalName,
+      p.image_mime_type AS imageMimeType,
+      p.image_size_bytes AS imageSizeBytes,
       p.created_at AS createdAt,
       (SELECT COUNT(*) FROM CommunityLikes l WHERE l.post_id = p.id) AS likeCount,
       (SELECT COUNT(*) FROM CommunityComments c WHERE c.post_id = p.id) AS commentCount,
@@ -56,6 +70,7 @@ function postSelect(user) {
       }
     FROM CommunityPosts p
     JOIN Users u ON u.id = p.user_id
+    LEFT JOIN Activities a ON a.id = p.activity_id
   `;
 }
 
@@ -96,9 +111,6 @@ async function ensureActivityUsable(activityId, user) {
   const activity = rows[0];
   if (!activity) {
     throw new ApiError(404, 'activity not found', 'NOT_FOUND');
-  }
-  if (user.role !== 'admin' && activity.ownerUserId && activity.ownerUserId !== user.id) {
-    throw new ApiError(403, 'you cannot share this activity', 'FORBIDDEN');
   }
 }
 
@@ -161,10 +173,28 @@ async function createPost(payload, user) {
   await ensureActivityUsable(payload.activityId, user);
   const result = await db.query(
     `
-      INSERT INTO CommunityPosts (user_id, activity_id, content, visibility)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO CommunityPosts (
+        user_id,
+        activity_id,
+        content,
+        visibility,
+        image_path,
+        image_original_name,
+        image_mime_type,
+        image_size_bytes
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    [user.id, payload.activityId || null, payload.content, payload.visibility]
+    [
+      user.id,
+      payload.activityId || null,
+      payload.content,
+      payload.visibility,
+      payload.imagePath || null,
+      payload.imageOriginalName || null,
+      payload.imageMimeType || null,
+      payload.imageSizeBytes || null
+    ]
   );
 
   return getPostById(result.insertId, user);

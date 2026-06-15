@@ -2,7 +2,21 @@ import { exploreArticles } from '@/mock/garsync'
 import { apiClient, unwrapApiResponse } from '@/services/http'
 import { collectionPayload, getEnvelope, useMockData } from '@/services/api'
 
+function resolveMediaUrl(value) {
+  if (!value || typeof value !== 'string') return ''
+  if (/^https?:\/\//i.test(value) || value.startsWith('blob:') || value.startsWith('data:')) return value
+  if (!value.startsWith('/')) return value
+  const baseUrl = apiClient.defaults.baseURL || ''
+  if (baseUrl.startsWith('/')) return value
+  try {
+    return `${new URL(baseUrl).origin}${value}`
+  } catch {
+    return value
+  }
+}
+
 function normalizeArticle(row = {}) {
+  const coverUrl = row.coverUrl || row.cover_url || ''
   return {
     ...row,
     id: row.id || row.slug || row.title,
@@ -13,9 +27,11 @@ function normalizeArticle(row = {}) {
     readTime: row.readTime || row.read_time || '',
     summary: row.summary || row.excerpt || row.description || '',
     content: row.content || '',
+    coverUrl: resolveMediaUrl(coverUrl),
+    imageUrl: resolveMediaUrl(row.imageUrl || row.image_url || coverUrl),
     username: row.username || '',
     userBio: row.userBio || row.user_bio || row.bio || '',
-    videoUrl: row.videoUrl || row.video_url || '',
+    videoUrl: resolveMediaUrl(row.videoUrl || row.video_url || ''),
     videoOriginalName: row.videoOriginalName || row.video_original_name || '',
     videoSizeBytes: row.videoSizeBytes ?? row.video_size_bytes ?? null,
     publishedAt: row.publishedAt || row.published_at || '',
@@ -58,6 +74,8 @@ export async function createExploreArticle(payload) {
       id: `mock-article-${Date.now()}`,
       username: 'Mock User',
       userBio: '热爱运动和课程分享',
+      coverUrl: payload.image ? URL.createObjectURL(payload.image) : '',
+      imageUrl: payload.image ? URL.createObjectURL(payload.image) : '',
       videoOriginalName: payload.video?.name || '',
       videoSizeBytes: payload.video?.size || null,
       publishedAt: new Date().toISOString(),
@@ -71,6 +89,9 @@ export async function createExploreArticle(payload) {
   formData.append('content', payload.content || '')
   if (payload.video) {
     formData.append('video', payload.video)
+  }
+  if (payload.image) {
+    formData.append('image', payload.image)
   }
 
   const response = await apiClient.post('/explore/articles', formData)

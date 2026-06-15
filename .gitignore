@@ -33,4 +33,5 @@ Thumbs.db
 database/data/
 database/.garmin_tokens/
 database/sql/02_import_data.sql
+backend/uploads/
 backend/ml/models/

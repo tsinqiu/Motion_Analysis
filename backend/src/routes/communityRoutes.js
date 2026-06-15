@@ -1,6 +1,11 @@
 const express = require('express');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const multer = require('multer');
 const defaultCommunityService = require('../services/communityService');
 const defaultAuthService = require('../services/authService');
+const config = require('../config');
 const { ApiError } = require('../errors');
 const { asyncHandler, parseEnum, parseKeyword, parsePage, parsePageSize, parsePositiveId } = require('../http');
 const { authenticate, optionalAuthenticate } = require('../middleware/authMiddleware');
@@ -8,6 +13,30 @@ const { sendCreated, sendData } = require('../response');
 
 const VISIBILITY = ['private', 'followers', 'public'];
 const SHARE_CHANNELS = ['copy_link', 'wechat', 'qq', 'weibo', 'system'];
+
+fs.mkdirSync(config.uploads.communityImagesDir, { recursive: true });
+
+const imageStorage = multer.diskStorage({
+  destination(req, file, callback) {
+    callback(null, config.uploads.communityImagesDir);
+  },
+  filename(req, file, callback) {
+    const extension = path.extname(file.originalname || '').slice(0, 16) || '.jpg';
+    callback(null, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${extension}`);
+  }
+});
+
+const uploadImage = multer({
+  storage: imageStorage,
+  limits: { fileSize: config.uploads.maxImageBytes },
+  fileFilter(req, file, callback) {
+    if (!String(file.mimetype || '').startsWith('image/')) {
+      callback(new ApiError(400, 'image file is required', 'INVALID_UPLOAD'));
+      return;
+    }
+    callback(null, true);
+  }
+});
 
 function parsePaging(query, fallback = 20, max = 100) {
   const page = parsePage(query.page);
@@ -55,14 +84,20 @@ function createCommunityRouter({ communityService = defaultCommunityService, aut
   router.post(
     '/community/posts',
     requireAuth,
+    uploadImage.single('image'),
     asyncHandler(async (req, res) => {
+      const file = req.file;
       sendCreated(
         res,
         await communityService.createPost(
           {
             content: requireText(req.body.content, 'content', 2000),
             activityId: parseOptionalPositiveId(req.body.activityId || req.body.activity_id, 'activityId'),
-            visibility: parseEnum(req.body.visibility, VISIBILITY, 'visibility', 'public')
+            visibility: parseEnum(req.body.visibility, VISIBILITY, 'visibility', 'public'),
+            imagePath: file ? `/uploads/community-images/${file.filename}` : '',
+            imageOriginalName: file?.originalname || '',
+            imageMimeType: file?.mimetype || '',
+            imageSizeBytes: file?.size || null
           },
           req.user
         )

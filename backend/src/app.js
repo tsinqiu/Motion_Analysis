@@ -74,11 +74,16 @@ function createApp({
       return;
     }
 
-    const statusCode = error.statusCode || 500;
+    const uploadLimitExceeded = error.code === 'LIMIT_FILE_SIZE';
+    const statusCode = uploadLimitExceeded ? 400 : error.statusCode || 500;
     res.status(statusCode).json({
       error: {
-        code: statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : error.code || 'API_ERROR',
-        message: statusCode === 500 ? 'internal server error' : error.message
+        code: uploadLimitExceeded
+          ? 'INVALID_UPLOAD'
+          : statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : error.code || 'API_ERROR',
+        message: uploadLimitExceeded
+          ? 'uploaded file is too large'
+          : statusCode === 500 ? 'internal server error' : error.message
       }
     });
   });

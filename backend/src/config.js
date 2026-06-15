@@ -94,7 +94,10 @@ const config = {
   uploads: {
     root: resolveBackendPath(process.env.UPLOAD_ROOT, 'uploads'),
     exploreVideosDir: resolveBackendPath(process.env.EXPLORE_VIDEO_UPLOAD_DIR, 'uploads/explore-videos'),
-    maxVideoBytes: parseInteger(process.env.EXPLORE_VIDEO_MAX_BYTES, 200 * 1024 * 1024)
+    exploreImagesDir: resolveBackendPath(process.env.EXPLORE_IMAGE_UPLOAD_DIR, 'uploads/explore-images'),
+    communityImagesDir: resolveBackendPath(process.env.COMMUNITY_IMAGE_UPLOAD_DIR, 'uploads/community-images'),
+    maxVideoBytes: parseInteger(process.env.EXPLORE_VIDEO_MAX_BYTES, 200 * 1024 * 1024),
+    maxImageBytes: parseInteger(process.env.IMAGE_UPLOAD_MAX_BYTES, 10 * 1024 * 1024)
   },
   ml: {
     pythonPath: process.env.ML_PYTHON_PATH || 'python',

@@ -14,28 +14,45 @@ const { sendCreated, sendData } = require('../response');
 const ARTICLE_TYPES = ['course', 'article', 'training_advice'];
 
 fs.mkdirSync(config.uploads.exploreVideosDir, { recursive: true });
+fs.mkdirSync(config.uploads.exploreImagesDir, { recursive: true });
 
-const videoStorage = multer.diskStorage({
+const mediaStorage = multer.diskStorage({
   destination(req, file, callback) {
-    callback(null, config.uploads.exploreVideosDir);
+    callback(null, file.fieldname === 'image' ? config.uploads.exploreImagesDir : config.uploads.exploreVideosDir);
   },
   filename(req, file, callback) {
-    const extension = path.extname(file.originalname || '').slice(0, 16) || '.mp4';
+    const fallbackExtension = file.fieldname === 'image' ? '.jpg' : '.mp4';
+    const extension = path.extname(file.originalname || '').slice(0, 16) || fallbackExtension;
     callback(null, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${extension}`);
   }
 });
 
-const uploadVideo = multer({
-  storage: videoStorage,
+const uploadMedia = multer({
+  storage: mediaStorage,
   limits: { fileSize: config.uploads.maxVideoBytes },
   fileFilter(req, file, callback) {
-    if (!String(file.mimetype || '').startsWith('video/')) {
+    const mimetype = String(file.mimetype || '');
+    if (file.fieldname === 'video' && !mimetype.startsWith('video/')) {
       callback(new ApiError(400, 'video file is required', 'INVALID_UPLOAD'));
+      return;
+    }
+    if (file.fieldname === 'image' && !mimetype.startsWith('image/')) {
+      callback(new ApiError(400, 'image file is required', 'INVALID_UPLOAD'));
+      return;
+    }
+    if (!['video', 'image'].includes(file.fieldname)) {
+      callback(new ApiError(400, 'unsupported upload field', 'INVALID_UPLOAD'));
       return;
     }
     callback(null, true);
   }
 });
+
+function removeUploadedFile(file) {
+  if (file?.path) {
+    fs.unlink(file.path, () => {});
+  }
+}
 
 function parsePaging(query, fallback = 20, max = 100) {
   const page = parsePage(query.page);
@@ -87,25 +104,48 @@ function createExploreRouter(exploreService = defaultExploreService, authService
   router.post(
     '/explore/articles',
     requireAuth,
-    uploadVideo.single('video'),
+    uploadMedia.fields([
+      { name: 'video', maxCount: 1 },
+      { name: 'image', maxCount: 1 }
+    ]),
     asyncHandler(async (req, res) => {
-      const file = req.file;
-      const videoPath = file
-        ? `/uploads/explore-videos/${file.filename}`
+      const type = parseEnum(req.body.type, ARTICLE_TYPES, 'type', 'article');
+      const videoFile = req.files?.video?.[0] || null;
+      const imageFile = req.files?.image?.[0] || null;
+
+      if (type === 'course' && imageFile) {
+        removeUploadedFile(imageFile);
+        throw new ApiError(400, 'course only accepts video upload', 'INVALID_UPLOAD');
+      }
+      if (type !== 'course' && videoFile) {
+        removeUploadedFile(videoFile);
+        throw new ApiError(400, 'article and training advice only accept image upload', 'INVALID_UPLOAD');
+      }
+      if (imageFile && imageFile.size > config.uploads.maxImageBytes) {
+        removeUploadedFile(imageFile);
+        throw new ApiError(400, 'image file is too large', 'INVALID_UPLOAD');
+      }
+
+      const videoPath = videoFile
+        ? `/uploads/explore-videos/${videoFile.filename}`
+        : '';
+      const imagePath = imageFile
+        ? `/uploads/explore-images/${imageFile.filename}`
         : '';
 
       sendCreated(
         res,
         await exploreService.createArticle(
           {
-            type: parseEnum(req.body.type, ARTICLE_TYPES, 'type', 'article'),
+            type,
             title: requireText(req.body.title, 'title', 200),
             summary: optionalText(req.body.summary, 500),
             content: optionalText(req.body.content, 10000),
+            coverUrl: imagePath,
             videoPath,
-            videoOriginalName: file?.originalname || '',
-            videoMimeType: file?.mimetype || '',
-            videoSizeBytes: file?.size || null
+            videoOriginalName: videoFile?.originalname || '',
+            videoMimeType: videoFile?.mimetype || '',
+            videoSizeBytes: videoFile?.size || null
           },
           req.user
         )

@@ -1,5 +1,19 @@
 import { communityPosts } from '@/mock/garsync'
+import { apiClient, unwrapApiResponse } from '@/services/http'
 import { collectionPayload, getEnvelope, mutateEnvelope, useMockData } from '@/services/api'
+
+function resolveMediaUrl(value) {
+  if (!value || typeof value !== 'string') return ''
+  if (/^https?:\/\//i.test(value) || value.startsWith('blob:') || value.startsWith('data:')) return value
+  if (!value.startsWith('/')) return value
+  const baseUrl = apiClient.defaults.baseURL || ''
+  if (baseUrl.startsWith('/')) return value
+  try {
+    return `${new URL(baseUrl).origin}${value}`
+  } catch {
+    return value
+  }
+}
 
 let mockPosts = communityPosts.map((post, index) => normalizePost({
   id: post.id,
@@ -26,7 +40,12 @@ export function normalizePost(row = {}) {
     content: row.content || row.text || '',
     activityType: row.activityType || row.activity_type || row.type || '',
     activityId: row.activityId || row.activity_id || null,
+    activityName: row.activityName || row.activity_name || '',
+    activityLocalStartTime: row.activityLocalStartTime || row.activity_local_start_time || '',
     visibility: row.visibility || 'public',
+    imageUrl: resolveMediaUrl(row.imageUrl || row.image_url || row.imagePath || row.image_path || ''),
+    imageOriginalName: row.imageOriginalName || row.image_original_name || '',
+    imageSizeBytes: row.imageSizeBytes ?? row.image_size_bytes ?? null,
     likeCount: Number(row.likeCount ?? row.likes ?? 0),
     commentCount: Number(row.commentCount ?? 0),
     shareCount: Number(row.shareCount ?? 0),
@@ -67,6 +86,7 @@ export async function createCommunityPost(payload) {
       ...payload,
       id: `mock-post-${Date.now()}`,
       username: 'Mock User',
+      imageUrl: payload.image ? URL.createObjectURL(payload.image) : '',
       createdAt: new Date().toISOString(),
       likeCount: 0,
       commentCount: 0,
@@ -76,8 +96,18 @@ export async function createCommunityPost(payload) {
     return post
   }
 
-  const envelope = await mutateEnvelope('post', '/community/posts', payload, { normalizer: normalizePost })
-  return envelope.data
+  const formData = new FormData()
+  formData.append('content', payload.content)
+  formData.append('visibility', payload.visibility || 'public')
+  if (payload.activityId) {
+    formData.append('activityId', payload.activityId)
+  }
+  if (payload.image) {
+    formData.append('image', payload.image)
+  }
+
+  const response = await apiClient.post('/community/posts', formData)
+  return normalizePost(unwrapApiResponse(response.data).data)
 }
 
 export async function getPostComments(postId, params = {}) {

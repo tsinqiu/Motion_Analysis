@@ -36,9 +36,9 @@
           <textarea v-model.trim="draft.content" maxlength="10000" placeholder="写下课程要点、训练经验或注意事项" />
         </label>
         <label class="settings-wide upload-drop">
-          <span>视频文件</span>
-          <input type="file" accept="video/*" @change="handleVideoChange" />
-          <small>{{ videoLabel }}</small>
+          <span>{{ uploadLabel }}</span>
+          <input :key="fileInputKey" type="file" :accept="uploadAccept" @change="handleMediaChange" />
+          <small>{{ mediaLabel }}</small>
         </label>
         <div class="settings-actions">
           <button class="primary-link" type="submit" :disabled="publishing || !draft.title">
@@ -82,27 +82,23 @@
         <article v-for="article in articles.items" :key="article.id" class="dark-panel article-card">
           <span>{{ typeLabel(article.type) }}</span>
           <h3>{{ article.title }}</h3>
-          <p>{{ article.summary || `${article.level} · ${article.readTime || '未标注时长'}` }}</p>
-          <small v-if="article.username" class="author-line">
-            {{ article.username }}<template v-if="article.userBio"> · {{ article.userBio }}</template>
-          </small>
-          <small v-if="article.videoOriginalName" class="author-line">视频：{{ article.videoOriginalName }}</small>
-          <button class="secondary-link" type="button" @click="selected = article">查看课程</button>
+          <div v-if="expandedArticleId === article.id" class="article-detail-inline">
+            <p>{{ article.summary || `${article.level} · ${article.readTime || '未标注时长'}` }}</p>
+            <p class="muted-copy">{{ article.content || article.summary || '该内容暂未填写正文。' }}</p>
+            <button v-if="article.imageUrl" class="image-preview-trigger" type="button" @click="openImagePreview(article.imageUrl, article.title)">
+              <img class="content-image" :src="article.imageUrl" alt="" />
+            </button>
+            <small v-if="article.username" class="author-line">
+              {{ article.username }}<template v-if="article.userBio"> · {{ article.userBio }}</template>
+            </small>
+            <small v-if="article.videoOriginalName" class="author-line">视频：{{ article.videoOriginalName }}</small>
+            <a v-if="article.videoUrl" class="secondary-link inline-action" :href="article.videoUrl" target="_blank" rel="noreferrer">查看视频</a>
+          </div>
+          <button class="secondary-link" type="button" @click="toggleArticle(article)">
+            {{ expandedArticleId === article.id ? '收起' : '查看课程' }}
+          </button>
         </article>
       </div>
-
-      <section v-if="selected" class="dark-panel">
-        <div class="section-heading">
-          <div>
-            <p class="overline">{{ typeLabel(selected.type) }}</p>
-            <h2>{{ selected.title }}</h2>
-          </div>
-          <button class="secondary-link" type="button" @click="selected = null">关闭</button>
-        </div>
-        <p class="muted-copy">{{ selected.content || selected.summary || '该内容暂未填写正文。' }}</p>
-        <p v-if="selected.username" class="muted-copy">发布者：{{ selected.username }}<template v-if="selected.userBio">，{{ selected.userBio }}</template></p>
-        <a v-if="selected.videoUrl" class="secondary-link" :href="selected.videoUrl" target="_blank" rel="noreferrer">查看视频</a>
-      </section>
 
       <section class="dark-panel">
         <div class="section-heading">
@@ -118,11 +114,17 @@
         </div>
       </section>
     </template>
+
+    <div v-if="previewImage.url" class="image-lightbox" role="dialog" aria-modal="true" @click.self="closeImagePreview">
+      <button class="lightbox-exit" type="button" @click="closeImagePreview">退出</button>
+      <img :src="previewImage.url" :alt="previewImage.alt" />
+      <p v-if="previewImage.alt">{{ previewImage.alt }}</p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import StateBlock from '@/components/StateBlock.vue'
 import { createExploreArticle, getExploreArticles, getExploreRecommendations } from '@/services/explore'
@@ -131,18 +133,28 @@ const filters = reactive({ type: '', keyword: '' })
 const draft = reactive({ type: 'course', title: '', summary: '', content: '' })
 const articles = ref({ items: [] })
 const recommendations = ref({ items: [] })
-const selected = ref(null)
+const expandedArticleId = ref('')
 const loading = ref(false)
 const publishing = ref(false)
 const error = ref('')
 const publishNotice = ref('')
-const videoFile = ref(null)
+const mediaFile = ref(null)
+const fileInputKey = ref(0)
+const previewImage = ref({ url: '', alt: '' })
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
-const videoLabel = computed(() => {
-  if (!videoFile.value) return '可选，支持常见视频格式，最大 200MB。'
-  const mb = videoFile.value.size / 1024 / 1024
-  return `${videoFile.value.name} · ${mb.toFixed(1)}MB`
+const isCourse = computed(() => draft.type === 'course')
+const uploadLabel = computed(() => isCourse.value ? '视频文件' : '图片文件')
+const uploadAccept = computed(() => isCourse.value ? 'video/*' : 'image/*')
+const mediaLabel = computed(() => {
+  if (!mediaFile.value) {
+    return isCourse.value
+      ? '可选，支持常见视频格式，最大 200MB。'
+      : '可选，支持常见图片格式，最大 10MB。'
+  }
+  const mb = mediaFile.value.size / 1024 / 1024
+  return `${mediaFile.value.name} · ${mb.toFixed(1)}MB`
 })
 
 function typeLabel(type) {
@@ -152,7 +164,7 @@ function typeLabel(type) {
 async function load() {
   loading.value = true
   error.value = ''
-  selected.value = null
+  expandedArticleId.value = ''
   try {
     const params = { page: 1, page_size: 12, ...filters }
     const [nextArticles, nextRecommendations] = await Promise.all([
@@ -168,27 +180,49 @@ async function load() {
   }
 }
 
-function handleVideoChange(event) {
+function handleMediaChange(event) {
   const file = event.target.files?.[0] || null
   publishNotice.value = ''
   error.value = ''
   if (!file) {
-    videoFile.value = null
+    mediaFile.value = null
     return
   }
-  if (!file.type.startsWith('video/')) {
-    error.value = '请选择视频文件。'
+  const expectedPrefix = isCourse.value ? 'video/' : 'image/'
+  if (!file.type.startsWith(expectedPrefix)) {
+    error.value = isCourse.value ? '请选择视频文件。' : '请选择图片文件。'
     event.target.value = ''
-    videoFile.value = null
+    mediaFile.value = null
     return
   }
-  if (file.size > MAX_VIDEO_BYTES) {
-    error.value = '视频文件不能超过 200MB。'
+  const maxBytes = isCourse.value ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
+  if (file.size > maxBytes) {
+    error.value = isCourse.value ? '视频文件不能超过 200MB。' : '图片文件不能超过 10MB。'
     event.target.value = ''
-    videoFile.value = null
+    mediaFile.value = null
     return
   }
-  videoFile.value = file
+  mediaFile.value = file
+}
+
+function toggleArticle(article) {
+  expandedArticleId.value = expandedArticleId.value === article.id ? '' : article.id
+}
+
+function openImagePreview(url, alt = '') {
+  previewImage.value = { url, alt }
+  document.body.classList.add('lightbox-open')
+}
+
+function closeImagePreview() {
+  previewImage.value = { url: '', alt: '' }
+  document.body.classList.remove('lightbox-open')
+}
+
+function handlePreviewKeydown(event) {
+  if (event.key === 'Escape') {
+    closeImagePreview()
+  }
 }
 
 async function publish() {
@@ -196,9 +230,14 @@ async function publish() {
   error.value = ''
   publishNotice.value = ''
   try {
-    await createExploreArticle({ ...draft, video: videoFile.value })
+    await createExploreArticle({
+      ...draft,
+      video: isCourse.value ? mediaFile.value : null,
+      image: isCourse.value ? null : mediaFile.value,
+    })
     Object.assign(draft, { type: 'course', title: '', summary: '', content: '' })
-    videoFile.value = null
+    mediaFile.value = null
+    fileInputKey.value += 1
     publishNotice.value = '内容已发布。'
     await load()
   } catch (err) {
@@ -208,5 +247,19 @@ async function publish() {
   }
 }
 
+watch(() => draft.type, () => {
+  mediaFile.value = null
+  fileInputKey.value += 1
+})
+
 watch(() => ({ ...filters }), load, { immediate: true })
+
+onMounted(() => {
+  window.addEventListener('keydown', handlePreviewKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handlePreviewKeydown)
+  document.body.classList.remove('lightbox-open')
+})
 </script>

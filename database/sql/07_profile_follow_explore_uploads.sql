@@ -91,3 +91,55 @@ SET @sql = (
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+  SELECT IF(COUNT(*) = 0,
+    'ALTER TABLE CommunityPosts ADD COLUMN image_path VARCHAR(1000) NULL AFTER visibility',
+    'SELECT 1')
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = @schema_name
+    AND TABLE_NAME = 'CommunityPosts'
+    AND COLUMN_NAME = 'image_path'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+  SELECT IF(COUNT(*) = 0,
+    'ALTER TABLE CommunityPosts ADD COLUMN image_original_name VARCHAR(260) NULL AFTER image_path',
+    'SELECT 1')
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = @schema_name
+    AND TABLE_NAME = 'CommunityPosts'
+    AND COLUMN_NAME = 'image_original_name'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+  SELECT IF(COUNT(*) = 0,
+    'ALTER TABLE CommunityPosts ADD COLUMN image_mime_type VARCHAR(120) NULL AFTER image_original_name',
+    'SELECT 1')
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = @schema_name
+    AND TABLE_NAME = 'CommunityPosts'
+    AND COLUMN_NAME = 'image_mime_type'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = (
+  SELECT IF(COUNT(*) = 0,
+    'ALTER TABLE CommunityPosts ADD COLUMN image_size_bytes BIGINT NULL AFTER image_mime_type',
+    'SELECT 1')
+  FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = @schema_name
+    AND TABLE_NAME = 'CommunityPosts'
+    AND COLUMN_NAME = 'image_size_bytes'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

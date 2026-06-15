@@ -26,6 +26,7 @@ function toArticle(row) {
     title: row.title,
     summary: row.summary,
     coverUrl: row.coverUrl,
+    imageUrl: row.coverUrl || '',
     videoUrl: row.videoPath || '',
     videoOriginalName: row.videoOriginalName || '',
     videoMimeType: row.videoMimeType || '',
@@ -142,6 +143,7 @@ async function createArticle(payload, user) {
         title,
         summary,
         content,
+        cover_url,
         status,
         published_at,
         video_path,
@@ -149,7 +151,7 @@ async function createArticle(payload, user) {
         video_mime_type,
         video_size_bytes
       )
-      VALUES (?, ?, ?, ?, ?, 'published', NOW(3), ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, 'published', NOW(3), ?, ?, ?, ?)
     `,
     [
       user.id,
@@ -157,6 +159,7 @@ async function createArticle(payload, user) {
       payload.title,
       payload.summary || null,
       payload.content || null,
+      payload.coverUrl || null,
       payload.videoPath || null,
       payload.videoOriginalName || null,
       payload.videoMimeType || null,
